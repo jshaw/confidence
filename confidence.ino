@@ -20,11 +20,15 @@
 // 0 = scanning
 // 1 = go to furthest distance
 int mode = 2;
-int foundIndex = false;
+int foundIndex = 0;
 
-
+// Scann interval
 const long interval = 1000;
 unsigned long previousMillis = 0;
+
+// Wait time between scans
+const long waitInterval = 5000;
+unsigned long waitPreviousMillis = 0;
 
 int currentDistance = 0;
 int previousDistance = 0;
@@ -54,11 +58,10 @@ Array<int> array = Array<int>(sensorArrayValue, size);
 void setup() {
   // Open serial monitor at 115200 baud to see ping results.
   Serial.begin(115200);
-  // Serial.begin(9600);
 
   // create with the default frequency 1.6KHz
   AFMS.begin();
-  // 10 rpm   
+  // default 10 rpm   
   myMotor->setSpeed(50);
 }
 
@@ -81,7 +84,7 @@ void loop() {
       Serial.print("getMaxIndex: ");
       Serial.println(maxIndex); // Send ping, get distance in cm and print result (0 = outside set distance range)
 
-      if (foundIndex == false){
+      if (foundIndex == 0){
 
         int stepToIndex = maxIndex * 2;
         int stepsToGetToPosition = motorMaxPosition - stepToIndex;
@@ -94,7 +97,21 @@ void loop() {
         motorCurrentPosition = stepToIndex;
   //    }
 
-        foundIndex = true;
+        foundIndex = 1;
+        waitPreviousMillis = millis();
+      }
+
+      unsigned long waitCurrentMillis = millis();
+      if(waitCurrentMillis - waitPreviousMillis >= waitInterval) {
+        waitPreviousMillis = waitCurrentMillis;
+        Serial.println("GET HERE?!");
+        foundIndex = 0;
+        mode = 0;
+
+        Serial.print("MODE: ");
+        Serial.println(mode);
+        Serial.print("foundIndex: ");
+        Serial.println(foundIndex);
       }
 
       return;
