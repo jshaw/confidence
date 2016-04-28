@@ -71,19 +71,19 @@ void loop() {
 
     // if mode is go to furthest distance go to that place / step
     if (mode == 1){
-      int minDis = array.getMin();
-      int minIndex = array.getMinIndex();
+      int maxDis = array.getMax();
+      int maxIndex = array.getMaxIndex();
 
-      Serial.print("getMin: ");
-      Serial.print(minDis); // Send ping, get distance in cm and print result (0 = outside set distance range)
+      Serial.print("getMax: ");
+      Serial.print(maxDis); // Send ping, get distance in cm and print result (0 = outside set distance range)
       Serial.println("cm");
 
-      Serial.print("getMinIndex: ");
-      Serial.println(minIndex); // Send ping, get distance in cm and print result (0 = outside set distance range)
+      Serial.print("getMaxIndex: ");
+      Serial.println(maxIndex); // Send ping, get distance in cm and print result (0 = outside set distance range)
 
       if (foundIndex == false){
 
-        int stepToIndex = minIndex * 2;
+        int stepToIndex = maxIndex * 2;
         int stepsToGetToPosition = motorMaxPosition - stepToIndex;
   
   //    if(motorCurrentPosition <= motorMaxPosition && motorDirection == 0){
