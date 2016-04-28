@@ -19,7 +19,9 @@
 // Controls Installation Mode
 // 0 = scanning
 // 1 = go to furthest distance
-int motorStep = 2;
+int mode = 2;
+int foundIndex = false;
+
 
 const long interval = 1000;
 unsigned long previousMillis = 0;
@@ -44,8 +46,8 @@ Adafruit_StepperMotor *myMotor = AFMS.getStepper(50, 1);
 //AccelStepper stepper1(forwardstep1, backwardstep1);
 
 // Setting up the different values for the sonar values while rotating
-const byte size = 14;
-int rawArray[size] = {1,2,3,4,5,6,7,8,9,10,11,12,13,14};
+const byte size = 13;
+int rawArray[size] = {0,1,2,3,4,5,6,7,8,9,10,11,12};
 int sensorArrayValue[size];
 Array<int> array = Array<int>(sensorArrayValue, size);
 
@@ -66,6 +68,37 @@ void loop() {
   
   if(currentMillis - previousMillis >= interval) {
     previousMillis = currentMillis;
+
+    // if mode is go to furthest distance go to that place / step
+    if (mode == 1){
+      int minDis = array.getMin();
+      int minIndex = array.getMinIndex();
+
+      Serial.print("getMin: ");
+      Serial.print(minDis); // Send ping, get distance in cm and print result (0 = outside set distance range)
+      Serial.println("cm");
+
+      Serial.print("getMinIndex: ");
+      Serial.println(minIndex); // Send ping, get distance in cm and print result (0 = outside set distance range)
+
+      if (foundIndex == false){
+
+        int stepToIndex = minIndex * 2;
+        int stepsToGetToPosition = motorMaxPosition - stepToIndex;
+  
+  //    if(motorCurrentPosition <= motorMaxPosition && motorDirection == 0){
+  //      myMotor->step(motorStep, FORWARD, MICROSTEP); 
+  //      motorCurrentPosition += motorStep;
+  //    } else if (motorCurrentPosition >= motorStartPosition && motorDirection == 1) {
+        myMotor->step(stepsToGetToPosition, BACKWARD, MICROSTEP); 
+        motorCurrentPosition = stepToIndex;
+  //    }
+
+        foundIndex = true;
+      }
+
+      return;
+    }
     
     if (DEBUG == true){
       
@@ -117,6 +150,7 @@ void loop() {
     } else if (motorCurrentPosition >= 25) {
       // backwards
       motorDirection = 1;
+      mode = 1;
     }
 
     previousDistance = currentDistance;
