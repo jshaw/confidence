@@ -1,8 +1,10 @@
 // ---------------------------------------------------------------------------
-// Example NewPing library sketch that does a ping about 20 times per second.
+// Confidenc Prototype
+// By: Jordan Shaw
+// Libs: NewPing, Adafruit MotorShield, AccelStepper, PWMServoDriver
 // ---------------------------------------------------------------------------
 
-#define DEBUG true
+#define DEBUG false
 
 #include <NewPing.h>
 #include <Array.h>
@@ -21,13 +23,14 @@
 // 1 = go to furthest distance
 int mode = 2;
 int foundIndex = 0;
+int distanceThreshold = 80;
 
 // Scann interval
 const long interval = 1000;
 unsigned long previousMillis = 0;
 
 // Wait time between scans
-const long waitInterval = 5000;
+const long waitInterval = 10000;
 unsigned long waitPreviousMillis = 0;
 
 int currentDistance = 0;
@@ -37,7 +40,11 @@ int motorStep = 2;
 int motorDirection = 0;
 int motorStartPosition = 0;
 int motorCurrentPosition = 0;
-int motorMaxPosition = 26;
+
+//int motorMaxPosition = 26;
+
+// Half the rotation for testing
+int motorMaxPosition = 13;
 
 NewPing sonar(TRIGGER_PIN, ECHO_PIN, MAX_DISTANCE); // NewPing setup of pins and maximum distance.
 
@@ -46,7 +53,7 @@ Adafruit_MotorShield AFMS = Adafruit_MotorShield();
 
 // Connect a stepper motor with 50 steps per revolution (7.2 degree)
 // to motor port #2 (M3 and M4)
-Adafruit_StepperMotor *myMotor = AFMS.getStepper(50, 1);
+Adafruit_StepperMotor *myMotor = AFMS.getStepper(50, 2);
 //AccelStepper stepper1(forwardstep1, backwardstep1);
 
 // Setting up the different values for the sonar values while rotating
@@ -74,7 +81,7 @@ void loop() {
 
     // if mode is go to furthest distance go to that place / step
     if (mode == 1){
-      int maxDis = array.getMax();
+      int maxDis = constrain(array.getMax(), 5, 400);
       int maxIndex = array.getMaxIndex();
 
       Serial.print("getMax: ");
@@ -89,16 +96,42 @@ void loop() {
         int stepToIndex = maxIndex * 2;
         int stepsToGetToPosition = motorMaxPosition - stepToIndex;
   
-  //    if(motorCurrentPosition <= motorMaxPosition && motorDirection == 0){
-  //      myMotor->step(motorStep, FORWARD, MICROSTEP); 
-  //      motorCurrentPosition += motorStep;
-  //    } else if (motorCurrentPosition >= motorStartPosition && motorDirection == 1) {
         myMotor->step(stepsToGetToPosition, BACKWARD, MICROSTEP); 
         motorCurrentPosition = stepToIndex;
-  //    }
 
         foundIndex = 1;
         waitPreviousMillis = millis();
+      }
+
+      // While the object is paused, if the max distance in that step's index changes more than 10/20 cm 
+      // reset the mode and foundIndex and rescan.
+      // The change in distance means there was a change in position of the observers
+
+      currentDistance = sonar.ping_cm();
+
+      Serial.print("**** currentDistance: ");
+      Serial.println(currentDistance);
+
+      Serial.print("**** maxDis: ");
+      Serial.println(maxDis);
+
+      Serial.print("**** distanceThreshold: ");
+      Serial.println(distanceThreshold);
+
+      Serial.print("**** currentDistance - maxDis >= distanceThreshold: ");
+      Serial.println(abs(currentDistance - maxDis));
+      
+      if(abs(currentDistance - maxDis) >= distanceThreshold){
+        // Break out of the wait
+
+        if(abs(currentDistance - maxDis) < 5 || distanceThreshold == 400){
+          return;
+        }
+        foundIndex = 0;
+        mode = 0;
+
+        Serial.println("**** WE EVER GET HERE?");
+        return;
       }
 
       unsigned long waitCurrentMillis = millis();
@@ -164,7 +197,7 @@ void loop() {
     if (motorCurrentPosition <= 0){
       // forwards
       motorDirection = 0;
-    } else if (motorCurrentPosition >= 25) {
+    } else if (motorCurrentPosition >= (motorMaxPosition -1)) {
       // backwards
       motorDirection = 1;
       mode = 1;
