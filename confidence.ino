@@ -44,7 +44,7 @@ int motorCurrentPosition = 0;
 //int motorMaxPosition = 26;
 
 // Half the rotation for testing
-int motorMaxPosition = 13;
+int motorMaxPosition = 14;
 
 NewPing sonar(TRIGGER_PIN, ECHO_PIN, MAX_DISTANCE); // NewPing setup of pins and maximum distance.
 
@@ -57,8 +57,8 @@ Adafruit_StepperMotor *myMotor = AFMS.getStepper(50, 2);
 //AccelStepper stepper1(forwardstep1, backwardstep1);
 
 // Setting up the different values for the sonar values while rotating
-const byte size = 13;
-int rawArray[size] = {0,1,2,3,4,5,6,7,8,9,10,11,12};
+const byte size = 14;
+int rawArray[size] = {0,1,2,3,4,5,6,7,8,9,10,11,12,13};
 int sensorArrayValue[size];
 Array<int> array = Array<int>(sensorArrayValue, size);
 
@@ -82,7 +82,11 @@ void loop() {
     // if mode is go to furthest distance go to that place / step
     if (mode == 1){
       int maxDis = constrain(array.getMax(), 5, 400);
-      int maxIndex = array.getMaxIndex();
+      
+      int maxIndex = constrain(array.getMaxIndex(), 0, (int)size);
+
+      Serial.print("array.size(): ");
+      Serial.println(array.size());
 
       Serial.print("getMax: ");
       Serial.print(maxDis); // Send ping, get distance in cm and print result (0 = outside set distance range)
