@@ -26,7 +26,8 @@ int foundIndex = 0;
 int distanceThreshold = 80;
 
 // Scann interval
-const long interval = 1000;
+//const long interval = 2500;
+const long interval = 1500;
 unsigned long previousMillis = 0;
 
 // Wait time between scans
@@ -82,6 +83,9 @@ void loop() {
     // if mode is go to furthest distance go to that place / step
     if (mode == 1){
       int maxDis = constrain(array.getMax(), 5, 400);
+
+      Serial.print("$$$$$$ array.getMax(): ");
+      Serial.println(array.getMax());
       
       int maxIndex = constrain(array.getMaxIndex(), 0, (int)size);
 
@@ -101,7 +105,7 @@ void loop() {
         int stepsToGetToPosition = motorMaxPosition - stepToIndex;
   
         myMotor->step(stepsToGetToPosition, BACKWARD, MICROSTEP); 
-        motorCurrentPosition = stepToIndex;
+        motorCurrentPosition = abs(stepToIndex);
 
         foundIndex = 1;
         waitPreviousMillis = millis();
@@ -112,6 +116,10 @@ void loop() {
       // The change in distance means there was a change in position of the observers
 
       currentDistance = sonar.ping_cm();
+
+      if (currentDistance <= 5){
+        return;
+      }
 
       Serial.print("**** currentDistance: ");
       Serial.println(currentDistance);
@@ -163,7 +171,7 @@ void loop() {
       Serial.print(currentDistance); // Send ping, get distance in cm and print result (0 = outside set distance range)
       Serial.println("cm");
 
-      int currentStep = motorCurrentPosition / 2;
+      int currentStep = abs(motorCurrentPosition) / 2;
       sensorArrayValue[currentStep] = currentDistance;
       
     } else {
@@ -176,7 +184,7 @@ void loop() {
         Serial.print(currentDistance); // Send ping, get distance in cm and print result (0 = outside set distance range)
         Serial.println("cm");
   
-        int currentStep = motorCurrentPosition / 2;
+        int currentStep = abs(motorCurrentPosition) / 2;
         sensorArrayValue[currentStep] = currentDistance;
       }
       
