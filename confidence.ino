@@ -25,6 +25,14 @@ int mode = 2;
 int foundIndex = 0;
 int distanceThreshold = 80;
 
+// g = 103
+// s = 115
+// n = 110
+// p = 112
+
+// defaults to stop
+int incomingByte = 115;
+
 // Scann interval
 //const long interval = 2500;
 const long interval = 1500;
@@ -47,7 +55,15 @@ int motorCurrentPosition = 0;
 // Half the rotation for testing
 int motorMaxPosition = 14;
 
+bool moveMotor = false;
+
 NewPing sonar(TRIGGER_PIN, ECHO_PIN, MAX_DISTANCE); // NewPing setup of pins and maximum distance.
+
+// How frequently are we going to send out a ping (in milliseconds). 50ms would be 20 times a second.
+unsigned int pingSpeed = 50;
+// Holds the next ping time.
+unsigned long pingTimer;
+
 
 // Create the motor shield object with the default I2C address
 Adafruit_MotorShield AFMS = Adafruit_MotorShield(); 
@@ -67,6 +83,9 @@ void setup() {
   // Open serial monitor at 115200 baud to see ping results.
   Serial.begin(115200);
 
+  // Sets the ping timer
+  pingTimer = millis();
+
   // create with the default frequency 1.6KHz
   AFMS.begin();
   // default 10 rpm   
@@ -74,151 +93,305 @@ void setup() {
 }
 
 void loop() {
-  
-  unsigned long currentMillis = millis();
-  
-  if(currentMillis - previousMillis >= interval) {
-    previousMillis = currentMillis;
 
-    // if mode is go to furthest distance go to that place / step
-    if (mode == 1){
-      int maxDis = constrain(array.getMax(), 5, 400);
+  if (Serial.available() > 0) {
+    // read the incoming byte:
+    incomingByte = Serial.read();
 
-      Serial.print("$$$$$$ array.getMax(): ");
-      Serial.println(array.getMax());
-      
-      int maxIndex = constrain(array.getMaxIndex(), 0, (int)size);
-
-      Serial.print("array.size(): ");
-      Serial.println(array.size());
-
-      Serial.print("getMax: ");
-      Serial.print(maxDis); // Send ping, get distance in cm and print result (0 = outside set distance range)
-      Serial.println("cm");
-
-      Serial.print("getMaxIndex: ");
-      Serial.println(maxIndex); // Send ping, get distance in cm and print result (0 = outside set distance range)
-
-      if (foundIndex == 0){
-
-        int stepToIndex = maxIndex * 2;
-        int stepsToGetToPosition = motorMaxPosition - stepToIndex;
-  
-        myMotor->step(stepsToGetToPosition, BACKWARD, MICROSTEP); 
-        motorCurrentPosition = abs(stepToIndex);
-
-        foundIndex = 1;
-        waitPreviousMillis = millis();
-      }
-
-      // While the object is paused, if the max distance in that step's index changes more than 10/20 cm 
-      // reset the mode and foundIndex and rescan.
-      // The change in distance means there was a change in position of the observers
-
-      currentDistance = sonar.ping_cm();
-
-      if (currentDistance <= 5){
-        return;
-      }
-
-      Serial.print("**** currentDistance: ");
-      Serial.println(currentDistance);
-
-      Serial.print("**** maxDis: ");
-      Serial.println(maxDis);
-
-      Serial.print("**** distanceThreshold: ");
-      Serial.println(distanceThreshold);
-
-      Serial.print("**** currentDistance - maxDis >= distanceThreshold: ");
-      Serial.println(abs(currentDistance - maxDis));
-      
-      if(abs(currentDistance - maxDis) >= distanceThreshold){
-        // Break out of the wait
-
-        if(abs(currentDistance - maxDis) < 5 || distanceThreshold == 400){
-          return;
-        }
-        foundIndex = 0;
-        mode = 0;
-
-        Serial.println("**** WE EVER GET HERE?");
-        return;
-      }
-
-      unsigned long waitCurrentMillis = millis();
-      if(waitCurrentMillis - waitPreviousMillis >= waitInterval) {
-        waitPreviousMillis = waitCurrentMillis;
-        Serial.println("GET HERE?!");
-        foundIndex = 0;
-        mode = 0;
-
-        Serial.print("MODE: ");
-        Serial.println(mode);
-        Serial.print("foundIndex: ");
-        Serial.println(foundIndex);
-      }
-
-      return;
-    }
-    
-    if (DEBUG == true){
-      
-      // Debug / Prototype Motor
-      currentDistance = random(5, 400); 
-
-      Serial.print("Ping: ");
-      Serial.print(currentDistance); // Send ping, get distance in cm and print result (0 = outside set distance range)
-      Serial.println("cm");
-
-      int currentStep = abs(motorCurrentPosition) / 2;
-      sensorArrayValue[currentStep] = currentDistance;
-      
-    } else {
-      
-      // Gets the sonar distance
-      currentDistance = sonar.ping_cm();
-      
-      if(currentDistance != 0){
-        Serial.print("Ping: ");
-        Serial.print(currentDistance); // Send ping, get distance in cm and print result (0 = outside set distance range)
-        Serial.println("cm");
-  
-        int currentStep = abs(motorCurrentPosition) / 2;
-        sensorArrayValue[currentStep] = currentDistance;
-      }
-      
-    }
-
-    //  Controls the motor
-    if(motorCurrentPosition <= motorMaxPosition && motorDirection == 0){
-      myMotor->step(motorStep, FORWARD, MICROSTEP); 
-      motorCurrentPosition += motorStep;
-    } else if (motorCurrentPosition >= motorStartPosition && motorDirection == 1) {
-      myMotor->step(motorStep, BACKWARD, MICROSTEP); 
-      motorCurrentPosition -= motorStep;
-    }
-
-    Serial.print("motorCurrentPosition: ");
-    Serial.println(motorCurrentPosition);
-
-    Serial.print("motorDirection: ");
-    Serial.println(motorDirection);
-
-    // Updates the direction of the motor
-    if (motorCurrentPosition <= 0){
-      // forwards
-      motorDirection = 0;
-    } else if (motorCurrentPosition >= (motorMaxPosition -1)) {
-      // backwards
-      motorDirection = 1;
-      mode = 1;
-    }
-
-    previousDistance = currentDistance;
+    // say what you got:
+    Serial.print("I received: ");
+    Serial.println(incomingByte, DEC);
     
   }
 
+    
+  // g = 103
+  // s = 115
+  // n = 110
+  // p = 112
+
+  // go
+  if (incomingByte == 103) {
+    
+  // next
+  } else if(incomingByte == 110){
+    myMotor->step(motorStep, FORWARD, MICROSTEP); 
+    motorCurrentPosition += motorStep;
+    // sets it to stop
+    incomingByte = 115;
+
+  // previous
+  } else if(incomingByte == 112){
+    myMotor->step(motorStep, BACKWARD, MICROSTEP); 
+    motorCurrentPosition -= motorStep;
+//    // sets it to stop
+    incomingByte = 115;
+
+  // stop
+  } else if(incomingByte == 115){
+    Serial.print("IN STOPs");
+
+  // Config... sets the current position to what index
+  } else if(incomingByte == 99){
+    Serial.print("In Config");
+    motorCurrentPosition = 7;
+  }
+
+  if (incomingByte != 103){
+    return;  
+  }
+
+  if (millis() >= pingTimer) {   // pingSpeed milliseconds since last ping, do another ping.
+    pingTimer += pingSpeed;      // Set the next ping time.
+    sonar.ping_timer(echoCheck); // Send out the ping, calls "echoCheck" function every 24uS where you can check the ping status.
+    Serial.print("*****");
+    Serial.println(currentDistance);
+
+    moveMotor = true;
+    
+  } else {
+    moveMotor = false;
+  }
+
+  // Do other stuff here, really. Think of it as multi-tasking.
+
+
+  
+  // unsigned long currentMillis = millis();
+  
+  // if(currentMillis - previousMillis >= interval) {
+  //   previousMillis = currentMillis;
+
+  //   // if mode is go to furthest distance go to that place / step
+  //   if (mode == 1){
+  //     int maxDis = constrain(array.getMax(), 5, 400);
+
+  //     Serial.print("$$$$$$ array.getMax(): ");
+  //     Serial.println(array.getMax());
+      
+  //     int maxIndex = constrain(array.getMaxIndex(), 0, (int)size);
+
+  //     Serial.print("array.size(): ");
+  //     Serial.println(array.size());
+
+  //     Serial.print("getMax: ");
+  //     Serial.print(maxDis); // Send ping, get distance in cm and print result (0 = outside set distance range)
+  //     Serial.println("cm");
+
+  //     Serial.print("getMaxIndex: ");
+  //     Serial.println(maxIndex); // Send ping, get distance in cm and print result (0 = outside set distance range)
+
+  //     if (foundIndex == 0){
+
+  //       int stepToIndex = maxIndex * 2;
+  //       int stepsToGetToPosition = motorMaxPosition - stepToIndex;
+  
+  //       myMotor->step(stepsToGetToPosition, BACKWARD, MICROSTEP); 
+  //       motorCurrentPosition = abs(stepToIndex);
+
+  //       foundIndex = 1;
+  //       waitPreviousMillis = millis();
+  //     }
+
+  //     // While the object is paused, if the max distance in that step's index changes more than 10/20 cm 
+  //     // reset the mode and foundIndex and rescan.
+  //     // The change in distance means there was a change in position of the observers
+
+  //     currentDistance = sonar.ping_cm();
+
+  //     if (currentDistance <= 5){
+  //       return;
+  //     }
+
+  //     Serial.print("**** currentDistance: ");
+  //     Serial.println(currentDistance);
+
+  //     Serial.print("**** maxDis: ");
+  //     Serial.println(maxDis);
+
+  //     Serial.print("**** distanceThreshold: ");
+  //     Serial.println(distanceThreshold);
+
+  //     Serial.print("**** currentDistance - maxDis >= distanceThreshold: ");
+  //     Serial.println(abs(currentDistance - maxDis));
+      
+  //     if(abs(currentDistance - maxDis) >= distanceThreshold){
+  //       // Break out of the wait
+
+  //       if(abs(currentDistance - maxDis) < 5 || distanceThreshold == 400){
+  //         return;
+  //       }
+  //       foundIndex = 0;
+  //       mode = 0;
+
+  //       Serial.println("**** WE EVER GET HERE?");
+  //       return;
+  //     }
+
+  //     unsigned long waitCurrentMillis = millis();
+  //     if(waitCurrentMillis - waitPreviousMillis >= waitInterval) {
+  //       waitPreviousMillis = waitCurrentMillis;
+  //       Serial.println("GET HERE?!");
+  //       foundIndex = 0;
+  //       mode = 0;
+
+  //       Serial.print("MODE: ");
+  //       Serial.println(mode);
+  //       Serial.print("foundIndex: ");
+  //       Serial.println(foundIndex);
+  //     }
+
+  //     return;
+  //   }
+    
+  // OLD DEBUG
+  // ==============
+  //   if (DEBUG == true){
+      
+  //     // Debug / Prototype Motor
+  //     currentDistance = random(5, 400); 
+
+  //     Serial.print("Ping: ");
+  //     Serial.print(currentDistance); // Send ping, get distance in cm and print result (0 = outside set distance range)
+  //     Serial.println("cm");
+
+  //     int currentStep = abs(motorCurrentPosition) / 2;
+  //     sensorArrayValue[currentStep] = currentDistance;
+      
+  //   } else {
+      
+  //     // Gets the sonar distance
+  //     currentDistance = sonar.ping_cm();
+      
+  //     if(currentDistance != 0){
+  //       Serial.print("Ping: ");
+  //       Serial.print(currentDistance); // Send ping, get distance in cm and print result (0 = outside set distance range)
+  //       Serial.println("cm");
+  
+  //       int currentStep = abs(motorCurrentPosition) / 2;
+  //       sensorArrayValue[currentStep] = currentDistance;
+  //     }
+      
+  //   }
+  // END OLD DEBUG
+  // ==============
+
+    if(moveMotor == true){
+
+//      if (mode == 1){
+//        int maxDis = constrain(array.getMax(), 5, 400);
+//        int maxIndex = constrain(array.getMaxIndex(), 0, (int)size);
+//
+//        if (foundIndex == 0){
+//          int stepToIndex = maxIndex * 2;
+//          int stepsToGetToPosition = motorMaxPosition - stepToIndex;
+//        
+//          myMotor->step(stepsToGetToPosition, BACKWARD, MICROSTEP); 
+//          motorCurrentPosition = abs(stepToIndex);
+//
+//          foundIndex = 1;
+//          waitPreviousMillis = millis();
+//        }
+//
+//        // While the object is paused, if the max distance in that step's index changes more than 10/20 cm 
+//        // reset the mode and foundIndex and rescan.
+//        // The change in distance means there was a change in position of the observers
+//
+//        // currentDistance = sonar.ping_cm();
+//
+//        if (currentDistance <= 5){
+//          return;
+//        }
+//
+//        // Serial.print("**** currentDistance: ");
+//        // Serial.println(currentDistance);
+//
+//        // Serial.print("**** maxDis: ");
+//        // Serial.println(maxDis);
+//
+//        // Serial.print("**** distanceThreshold: ");
+//        // Serial.println(distanceThreshold);
+//
+//        // Serial.print("**** currentDistance - maxDis >= distanceThreshold: ");
+//        // Serial.println(abs(currentDistance - maxDis));
+//        
+//        if(abs(currentDistance - maxDis) >= distanceThreshold){
+//          // Break out of the wait
+//
+//          if(abs(currentDistance - maxDis) < 5 || distanceThreshold == 400){
+//            return;
+//          }
+//
+//          foundIndex = 0;
+//          mode = 0;
+//
+//          Serial.println("**** WE EVER GET HERE?");
+//          return;
+//        }
+//
+//        // looks at the 
+//        unsigned long waitCurrentMillis = millis();
+//        if(waitCurrentMillis - waitPreviousMillis >= waitInterval) {
+//          waitPreviousMillis = waitCurrentMillis;
+//          Serial.println("GET HERE?!");
+//          foundIndex = 0;
+//          mode = 0;
+//
+//          Serial.print("MODE: ");
+//          Serial.println(mode);
+//          Serial.print("foundIndex: ");
+//          Serial.println(foundIndex);
+//        }
+//
+//        return;
+//
+//      }
+
+
+      //  Controls the motor
+      if(motorCurrentPosition <= motorMaxPosition && motorDirection == 0){
+        myMotor->step(motorStep, FORWARD, MICROSTEP); 
+        motorCurrentPosition += motorStep;
+      } else if (motorCurrentPosition >= motorStartPosition && motorDirection == 1) {
+        myMotor->step(motorStep, BACKWARD, MICROSTEP); 
+        motorCurrentPosition -= motorStep;
+      }
+//
+//      Serial.print("motorCurrentPosition: ");
+//      Serial.println(motorCurrentPosition);
+//
+//      Serial.print("motorDirection: ");
+//      Serial.println(motorDirection);
+
+      // Updates the direction of the motor
+      if (motorCurrentPosition <= 0){
+        // forwards
+        motorDirection = 0;
+      } else if (motorCurrentPosition >= (motorMaxPosition -1)) {
+        // backwards
+        motorDirection = 1;
+        mode = 1;
+      }
+
+      previousDistance = currentDistance;
+    }
+    
+  // }
+
+}
+
+void echoCheck() { // Timer2 interrupt calls this function every 24uS where you can check the ping status.
+  // Don't do anything here!
+  if (sonar.check_timer()) { // This is how you check to see if the ping was received.
+    // Here's where you can add code.
+    // Serial.print("Ping: ");
+    // Serial.print(sonar.ping_result / US_ROUNDTRIP_CM); // Ping returned, uS result in ping_result, convert to cm with US_ROUNDTRIP_CM.
+    // Serial.println("cm");
+
+    currentDistance = sonar.ping_result / US_ROUNDTRIP_CM;
+
+  }
+  // Don't do anything here!
 }
 
 // you can change these to DOUBLE or INTERLEAVE or MICROSTEP!
