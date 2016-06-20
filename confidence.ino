@@ -200,25 +200,25 @@ void loop() {
         foundIndex = 1;
       }
 
-     // looks at the 
-     unsigned long waitCurrentMillis = millis();
-     // if(waitCurrentMillis - waitPreviousMillis >= waitInterval && paused == false) {
+      // looks at the 
+      unsigned long waitCurrentMillis = millis();
+      // if(waitCurrentMillis - waitPreviousMillis >= waitInterval && paused == false) {
       if(waitCurrentMillis - waitPreviousMillis >= waitInterval || breakout == true) {
-       waitPreviousMillis = waitCurrentMillis;
+        waitPreviousMillis = waitCurrentMillis;
 
-       foundIndex = 0;
-       mode = 0;
-       paused = false;
-       breakout = false;
+        foundIndex = 0;
+        mode = 0;
+        paused = false;
+        breakout = false;
 
-       // Serial.print("MODE: ");
-       // Serial.println(mode);
-       // Serial.print("foundIndex: ");
-       // Serial.println(foundIndex);
-     } else if (waitCurrentMillis - waitPreviousMillis < waitInterval) {
-      Serial.println("*********** ***** *** When does this happen????");
-      paused = true;
-     }
+        // Serial.print("MODE: ");
+        // Serial.println(mode);
+        // Serial.print("foundIndex: ");
+        // Serial.println(foundIndex);
+      } else if (waitCurrentMillis - waitPreviousMillis < waitInterval) {
+        Serial.println("*********** ***** *** When does this happen????");
+        paused = true;
+      }
 
       Serial.print("currentDistance: ");
       Serial.println(currentDistance);
@@ -231,48 +231,18 @@ void loop() {
       Serial.println( distanceThreshold );
       Serial.println( abs(maxDis + distanceThreshold) );
       Serial.println( abs( (int)currentDistance - (int)abs(maxDis - distanceThreshold ) ) );
-      
 
-      // Debugging for answering if change becomes farther
-      // Serial.print("2 answer: ");
-      // // Serial.println( currentDistance);
-      // Serial.println( abs(maxDis + distanceThreshold) );
-
-       // #### TODO
-       // #### TODO
-       // #### TODO
-       // #### TODO
-       // #### TODO
-       // #### TODO
-       // #### TODO
-
-        // the paused flag prevents the motors from running cause it returns the loop
-        // but if paused is false it skips the return anf runs the motors
-        // but i need a way to break out if the distance is different
-        // when the motor starts up again
-        // the distances are all weird... look into a debounce perhaps 
-
-       // #### TODO
-       // #### TODO
-       // #### TODO
-       // #### TODO
-       // #### TODO
-       // #### TODO
-       // #### TODO
-       // #### TODO
-       // #### TODO
-
-          // THIS IS GOOD!
-        if( abs((int)currentDistance - (int)abs(maxDis - distanceThreshold )) >= (int)distanceThreshold )
-        {
-            Serial.println("Larger=====: ######### BREAK OUT #########  ");
-            paused = false;
-            breakout = false;
-        } else if((int)abs(maxDis + (distanceThreshold)) <= (int)currentDistance && paused == true){
-            Serial.println("Smaller====: ######### BREAK OUT #########  ");
-            paused = false;
-            breakout = false;
-        }
+      // THIS IS GOOD!
+      if( abs((int)currentDistance - (int)abs(maxDis - distanceThreshold )) >= (int)distanceThreshold )
+      {
+        Serial.println("Larger=====: ######### BREAK OUT #########  ");
+        paused = false;
+        breakout = false;
+      } else if((int)abs(maxDis + (distanceThreshold)) <= (int)currentDistance && paused == true){
+        Serial.println("Smaller====: ######### BREAK OUT #########  ");
+        paused = false;
+        breakout = false;
+      }
       
     } else {
       Serial.println("&&&&&&&&& IN ELSE!!!!");
@@ -314,7 +284,6 @@ void loop() {
       Serial.println(currentDistance);
     } else {
       sensorArrayValue[currentStep] = 0;
-      // mode = 1;
     }
 
      // Serial.print("motorCurrentPosition: ");
