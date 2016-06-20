@@ -147,12 +147,11 @@ void loop() {
   } else if(incomingByte == 112){
     myMotor->step(motorStep, BACKWARD, MICROSTEP); 
     motorCurrentPosition -= motorStep;
-//    // sets it to stop
+    // sets it to stop
     incomingByte = 115;
 
   // stop
   } else if(incomingByte == 115){
-    // Serial.println("IN STOPs");
 
   // Config... sets the current position to what index
   } else if(incomingByte == 99){
@@ -180,384 +179,161 @@ void loop() {
     moveMotor = false;
   }
 
-  // Do other stuff here, really. Think of it as multi-tasking.
-  
-  // if(currentMillis - previousMillis >= interval) {
-  //   previousMillis = currentMillis;
+  if(moveMotor == true){
+
+    if (mode == 1){
+      int maxDis = constrain(array.getMax(), 5, 400);
+      int maxIndex = constrain(array.getMaxIndex(), 0, (int)size);
+
+      // Serial.println("=======");
+      // Serial.println(array.size());
+      // Serial.println("=======");
+      if (foundIndex == 0){
+        int stepToIndex = maxIndex;
+        int stepsToGetToPosition = motorMaxPosition - stepToIndex;
 
-  //   // if mode is go to furthest distance go to that place / step
-  //   if (mode == 1){
-  //     int maxDis = constrain(array.getMax(), 5, 400);
-
-  //     Serial.print("$$$$$$ array.getMax(): ");
-  //     Serial.println(array.getMax());
-      
-  //     int maxIndex = constrain(array.getMaxIndex(), 0, (int)size);
-
-  //     Serial.print("array.size(): ");
-  //     Serial.println(array.size());
-
-  //     Serial.print("getMax: ");
-  //     Serial.print(maxDis); // Send ping, get distance in cm and print result (0 = outside set distance range)
-  //     Serial.println("cm");
-
-  //     Serial.print("getMaxIndex: ");
-  //     Serial.println(maxIndex); // Send ping, get distance in cm and print result (0 = outside set distance range)
-
-  //     if (foundIndex == 0){
-
-  //       int stepToIndex = maxIndex * 2;
-  //       int stepsToGetToPosition = motorMaxPosition - stepToIndex;
-  
-  //       myMotor->step(stepsToGetToPosition, BACKWARD, MICROSTEP); 
-  //       motorCurrentPosition = abs(stepToIndex);
-
-  //       foundIndex = 1;
-  //       waitPreviousMillis = millis();
-  //     }
-
-  //     // While the object is paused, if the max distance in that step's index changes more than 10/20 cm 
-  //     // reset the mode and foundIndex and rescan.
-  //     // The change in distance means there was a change in position of the observers
-
-  //     currentDistance = sonar.ping_cm();
-
-  //     if (currentDistance <= 5){
-  //       return;
-  //     }
-
-  //     Serial.print("**** currentDistance: ");
-  //     Serial.println(currentDistance);
-
-  //     Serial.print("**** maxDis: ");
-  //     Serial.println(maxDis);
-
-  //     Serial.print("**** distanceThreshold: ");
-  //     Serial.println(distanceThreshold);
-
-  //     Serial.print("**** currentDistance - maxDis >= distanceThreshold: ");
-  //     Serial.println(abs(currentDistance - maxDis));
-      
-  //     if(abs(currentDistance - maxDis) >= distanceThreshold){
-  //       // Break out of the wait
-
-  //       if(abs(currentDistance - maxDis) < 5 || distanceThreshold == 400){
-  //         return;
-  //       }
-  //       foundIndex = 0;
-  //       mode = 0;
-
-  //       Serial.println("**** WE EVER GET HERE?");
-  //       return;
-  //     }
-
-  //     unsigned long waitCurrentMillis = millis();
-  //     if(waitCurrentMillis - waitPreviousMillis >= waitInterval) {
-  //       waitPreviousMillis = waitCurrentMillis;
-  //       Serial.println("GET HERE?!");
-  //       foundIndex = 0;
-  //       mode = 0;
-
-  //       Serial.print("MODE: ");
-  //       Serial.println(mode);
-  //       Serial.print("foundIndex: ");
-  //       Serial.println(foundIndex);
-  //     }
-
-  //     return;
-  //   }
-    
-  // OLD DEBUG
-  // ==============
-  //   if (DEBUG == true){
-      
-  //     // Debug / Prototype Motor
-  //     currentDistance = random(5, 400); 
-
-  //     Serial.print("Ping: ");
-  //     Serial.print(currentDistance); // Send ping, get distance in cm and print result (0 = outside set distance range)
-  //     Serial.println("cm");
-
-  //     int currentStep = abs(motorCurrentPosition) / 2;
-  //     sensorArrayValue[currentStep] = currentDistance;
-      
-  //   } else {
-      
-      // Gets the sonar distance
-      // currentDistance = sonar.ping_cm();
-      
-      // if(currentDistance != 0){
-      //   Serial.print("Ping: ");
-      //   Serial.print(currentDistance); // Send ping, get distance in cm and print result (0 = outside set distance range)
-      //   Serial.println("cm");
-  
-      //   int currentStep = abs(motorCurrentPosition) / 2;
-      //   sensorArrayValue[currentStep] = currentDistance;
-      // }
-      
-  //   }
-  // END OLD DEBUG
-  // ==============
-
-
-
-
-  // NOTICE
-  // ==============
-  // BELOW HERE IS THE WIP
-
-
-
-
-    if(moveMotor == true){
-
-      if (mode == 1){
-        int maxDis = constrain(array.getMax(), 5, 400);
-        int maxIndex = constrain(array.getMaxIndex(), 0, (int)size);
-
-        // Serial.println("=======");
-        // Serial.println(array.size());
-        // Serial.println("=======");
-//
-        if (foundIndex == 0){
-          // Serial.println("**** WE EVER GET HERE?");
-          int stepToIndex = maxIndex;
-          int stepsToGetToPosition = motorMaxPosition - stepToIndex;
-
-          // MICROSTEP
-          // DOUBLE
-          // INTERLEAVE
-          myMotor->step(stepsToGetToPosition, BACKWARD, MICROSTEP); 
-          motorCurrentPosition = abs(stepToIndex);
-
-          foundIndex = 1;
-          // waitPreviousMillis = millis();
-        }
-//
-//        // While the object is paused, if the max distance in that step's index changes more than 10/20 cm 
-//        // reset the mode and foundIndex and rescan.
-//        // The change in distance means there was a change in position of the observers
-//
-//        // currentDistance = sonar.ping_cm();
-//
-//        if (currentDistance <= 5){
-//          return;
-//        }
-//
-
-
-
-// good logging here
-// right below
-
-
-//           Serial.print("**** maxIndex: ");
-//           Serial.println(maxIndex);
-
-//           Serial.print("**** currentDistance: ");
-//           Serial.println(currentDistance);
-// //
-//           Serial.print("**** maxDis: ");
-//           Serial.println(maxDis);
-//
-//        // Serial.print("**** distanceThreshold: ");
-//        // Serial.println(distanceThreshold);
-//
-
-
-
-
-
-
-
-
-//        // Serial.print("**** currentDistance - maxDis >= distanceThreshold: ");
-//        // Serial.println(abs(currentDistance - maxDis));
-//        
-       // if(( abs(currentDistance - maxDis) <= distanceThreshold ) && paused == true){
-       //  if(abs(currentDistance - maxDis) <= distanceThreshold){
-       // //   // Break out of the wait
-
-       //    // this is weird
-       //   // if(abs(currentDistance - maxDis) < 5 || distanceThreshold == 400){
-       //   //   return;
-       //   // }
-
-       //   foundIndex = 0;
-       //   mode = 0;
-
-       // //   // Serial.println("**** WE EVER GET HERE?");
-       // //   // Always gets there
-       //    paused = false;
-       //   // return;
-       // }
-
-       // looks at the 
-       unsigned long waitCurrentMillis = millis();
-       // if(waitCurrentMillis - waitPreviousMillis >= waitInterval && paused == false) {
-        if(waitCurrentMillis - waitPreviousMillis >= waitInterval || breakout == true) {
-         waitPreviousMillis = waitCurrentMillis;
-         // Serial.println("GET HERE?!");
-
-         foundIndex = 0;
-         mode = 0;
-         paused = false;
-         breakout = false;
-
-         // Serial.print("MODE: ");
-         // Serial.println(mode);
-         // Serial.print("foundIndex: ");
-         // Serial.println(foundIndex);
-       } else if (waitCurrentMillis - waitPreviousMillis < waitInterval) {
-        Serial.println("*********** ***** *** When does this happen????");
-        paused = true;
-       }
-
-       // if(( abs(currentDistance - maxDis) <= distanceThreshold ) && paused == true){
-        Serial.print("currentDistance: ");
-        Serial.println(currentDistance);
-
-        Serial.print("maxDis: ");
-        Serial.println(maxDis);
-
-        // Serial.print("distanceThreshold: ");
-        // Serial.println(distanceThreshold);
-
-        // Serial.print("answer: ");
-        // Serial.println(abs(currentDistance - maxDis));
-
-        Serial.print("1 answer: ");
-        // Serial.println( currentDistance );
-        Serial.println( distanceThreshold );
-        // Serial.println( abs(maxDis - distanceThreshold) );
-        // Serial.println( abs((int)currentDistance - (int)abs(maxDis - distanceThreshold )) );
-
-        Serial.println( abs(maxDis + distanceThreshold) );
-        // Serial.println( abs((int)currentDistance - (int)abs(maxDis + distanceThreshold )) );
-        Serial.println( abs( (int)currentDistance - (int)abs(maxDis - distanceThreshold ) ) );
-        
-
-        // Serial.print("2 answer: ");
-        // // Serial.println( currentDistance);
-        // Serial.println( abs(maxDis + distanceThreshold) );
-
-        // if(abs(currentDistance - maxDis) <= distanceThreshold){
-        // if(( currentDistance >= (maxDis + maxError) - distanceThreshold ) ){
-
-
-
-         // #### TODO
-         // #### TODO
-         // #### TODO
-         // #### TODO
-         // #### TODO
-         // #### TODO
-         // #### TODO
-
-
-          // the paused flag prevents the motors from running cause it returns the loop
-          // but if paused is false it skips the return anf runs the motors
-          // but i need a way to break out if the distance is different
-          // when the motor starts up again
-          // the distances are all weird... look into a debounce perhaps 
-
-
-
-
-         // #### TODO
-         // #### TODO
-         // #### TODO
-         // #### TODO
-         // #### TODO
-         // #### TODO
-         // #### TODO
-         // #### TODO
-         // #### TODO
-
-
-
-        
-            // THIS IS GOOD!
-          if( abs((int)currentDistance - (int)abs(maxDis - distanceThreshold )) >= (int)distanceThreshold )
-          //   || (int)currentDistance - (int)abs(maxDis + (distanceThreshold)) )
-          // if ( (int)currentDistance - (int)abs(maxDis + (distanceThreshold)) )
-          // if ( (int)abs(maxDis + (distanceThreshold)) <= (int)currentDistance )
-          {
-            // && ( currentDistance) <= maxDis + distanceThreshold) {
-              // if(paused == true){
-                
-                Serial.println("111 ######### BREAK OUT #########  ");
-                paused = false;
-                breakout = false;
-              // }
-          } else if((int)abs(maxDis + (distanceThreshold)) <= (int)currentDistance && paused == true){
-              Serial.println("222 ######### BREAK OUT #########  ");
-              paused = false;
-              breakout = false;
-          }
-
-
-        Serial.println("333333333333333333333333333333333333333333");
-
-
-        if(paused == true){
-          Serial.println("44444444444444444444444");
-          return;
-        }
-
-        Serial.println("55555555555555555555555555");
-        
-      }
-
-
-      //  Controls the motor
-      if(motorCurrentPosition <= motorMaxPosition && motorDirection == 0){
-        // INTERLEAVE
         // MICROSTEP
-        myMotor->step(motorStep, FORWARD, MICROSTEP); 
-        motorCurrentPosition += motorStep;
-      } else if (motorCurrentPosition >= motorStartPosition && motorDirection == 1) {
-        myMotor->step(motorStep, BACKWARD, MICROSTEP); 
-        motorCurrentPosition -= motorStep;
+        // DOUBLE
+        // INTERLEAVE
+        myMotor->step(stepsToGetToPosition, BACKWARD, MICROSTEP); 
+        motorCurrentPosition = abs(stepToIndex);
+        foundIndex = 1;
       }
 
-      // moved to store distance after move
-      // int currentStep = abs(motorCurrentPosition) / 2;
-      int currentStep = motorCurrentPosition;
-      if(motorDirection == 0){
-        // Serial.print("currentStep");
-        // Serial.println(currentStep);
-        sensorArrayValue[currentStep] = currentDistance;
-        
-        Serial.print("***** CD: ");
-        Serial.println(currentDistance);
-      } else {
-        sensorArrayValue[currentStep] = 0;
-      }
-//
-//      Serial.print("motorCurrentPosition: ");
-//      Serial.println(motorCurrentPosition);
-//
-//      Serial.print("motorDirection: ");
-//      Serial.println(motorDirection);
+     // looks at the 
+     unsigned long waitCurrentMillis = millis();
+     // if(waitCurrentMillis - waitPreviousMillis >= waitInterval && paused == false) {
+      if(waitCurrentMillis - waitPreviousMillis >= waitInterval || breakout == true) {
+       waitPreviousMillis = waitCurrentMillis;
 
-      // Updates the direction of the motor
-      if (motorCurrentPosition <= 0){
-        // forwards
-        motorDirection = 0;
-      } else if (motorCurrentPosition >= (motorMaxPosition)) {
-        // backwards
-        motorDirection = 1;
-        mode = 1;
-      }
+       foundIndex = 0;
+       mode = 0;
+       paused = false;
+       breakout = false;
 
-      // previousDistance = currentDistance;
+       // Serial.print("MODE: ");
+       // Serial.println(mode);
+       // Serial.print("foundIndex: ");
+       // Serial.println(foundIndex);
+     } else if (waitCurrentMillis - waitPreviousMillis < waitInterval) {
+      Serial.println("*********** ***** *** When does this happen????");
+      paused = true;
+     }
+
+      Serial.print("currentDistance: ");
+      Serial.println(currentDistance);
+
+      Serial.print("maxDis: ");
+      Serial.println(maxDis);
+
+      // Debugging for answering if change becomes closer
+      Serial.print("1 answer: ");
+      Serial.println( distanceThreshold );
+      Serial.println( abs(maxDis + distanceThreshold) );
+      Serial.println( abs( (int)currentDistance - (int)abs(maxDis - distanceThreshold ) ) );
+      
+
+      // Debugging for answering if change becomes farther
+      // Serial.print("2 answer: ");
+      // // Serial.println( currentDistance);
+      // Serial.println( abs(maxDis + distanceThreshold) );
+
+       // #### TODO
+       // #### TODO
+       // #### TODO
+       // #### TODO
+       // #### TODO
+       // #### TODO
+       // #### TODO
+
+        // the paused flag prevents the motors from running cause it returns the loop
+        // but if paused is false it skips the return anf runs the motors
+        // but i need a way to break out if the distance is different
+        // when the motor starts up again
+        // the distances are all weird... look into a debounce perhaps 
+
+       // #### TODO
+       // #### TODO
+       // #### TODO
+       // #### TODO
+       // #### TODO
+       // #### TODO
+       // #### TODO
+       // #### TODO
+       // #### TODO
+
+          // THIS IS GOOD!
+        if( abs((int)currentDistance - (int)abs(maxDis - distanceThreshold )) >= (int)distanceThreshold )
+        {
+            Serial.println("Larger=====: ######### BREAK OUT #########  ");
+            paused = false;
+            breakout = false;
+        } else if((int)abs(maxDis + (distanceThreshold)) <= (int)currentDistance && paused == true){
+            Serial.println("Smaller====: ######### BREAK OUT #########  ");
+            paused = false;
+            breakout = false;
+        }
+      
+    } else {
+      Serial.println("&&&&&&&&& IN ELSE!!!!");
+      // We need to set this here because the condition above isn't always run / checked.
+      // We want the if mode 1 pause to last since this was last called
+      waitPreviousMillis = millis();
     }
-    
-  // }
 
+    Serial.println("Before Pause");
 
-  // Serial.println("######################################");
+    if(paused == true){
+      Serial.println("In Pause");
+      return;
+    }
+
+    Serial.println("After Pause");
+
+    //  Controls the motor
+    if(motorCurrentPosition <= motorMaxPosition && motorDirection == 0){
+      // INTERLEAVE
+      // MICROSTEP
+      myMotor->step(motorStep, FORWARD, MICROSTEP); 
+      motorCurrentPosition += motorStep;
+    } else if (motorCurrentPosition >= motorStartPosition && motorDirection == 1) {
+      myMotor->step(motorStep, BACKWARD, MICROSTEP); 
+      motorCurrentPosition -= motorStep;
+    }
+
+    // moved to store distance after move
+    // int currentStep = abs(motorCurrentPosition) / 2;
+    int currentStep = motorCurrentPosition;
+    if(motorDirection == 0){
+      // Serial.print("currentStep");
+      // Serial.println(currentStep);
+      sensorArrayValue[currentStep] = currentDistance;
+      mode = 0;
+      
+      Serial.print("Current Distance: ");
+      Serial.println(currentDistance);
+    } else {
+      sensorArrayValue[currentStep] = 0;
+      // mode = 1;
+    }
+
+     // Serial.print("motorCurrentPosition: ");
+     // Serial.println(motorCurrentPosition);
+
+     // Serial.print("motorDirection: ");
+     // Serial.println(motorDirection);
+
+    // Updates the direction of the motor
+    if (motorCurrentPosition <= 0){
+      // forwards
+      motorDirection = 0;
+    } else if (motorCurrentPosition >= (motorMaxPosition)) {
+      // backwards
+      motorDirection = 1;
+      mode = 1;
+    }
+
+  }
 
 }
 
