@@ -1,4 +1,4 @@
-# confidence
+# Habitual Instinct
 
 Arduino sketch for my first prototype of an idea realted around avoident robots and recreating specific personality traits around them. In this case creating a lack of confidence style of behaviour to a machine.
 
