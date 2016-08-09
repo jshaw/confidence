@@ -33,6 +33,8 @@
 #include <Adafruit_MotorShield.h>
 #include "utility/Adafruit_MS_PWMServoDriver.h"
 
+#include <ArduinoJson.h>
+
 #define TRIGGER_PIN  12  // Arduino pin tied to trigger pin on the ultrasonic sensor.
 #define ECHO_PIN     11  // Arduino pin tied to echo pin on the ultrasonic sensor.
 #define MAX_DISTANCE 400 // Maximum distance we want to ping for (in centimeters). Maximum sensor distance is rated at 400-500cm.
@@ -73,6 +75,7 @@ int motorCurrentPosition = 0;
 int motorMaxPosition = 20;
 
 bool moveMotor = false;
+bool printJSON = true;
 
 NewPing sonar(TRIGGER_PIN, ECHO_PIN, MAX_DISTANCE); // NewPing setup of pins and maximum distance.
 
@@ -105,6 +108,8 @@ void setup() {
   // Open serial monitor at 115200 baud to see ping results.
   Serial.begin(115200);
 
+  Serial.print("++");
+
   // Sets the ping timer
   pingTimer = millis();
 
@@ -112,9 +117,17 @@ void setup() {
   AFMS.begin();
   // default 10 rpm   
   myMotor->setSpeed(50);
+
+
+//  StaticJsonBuffer<200> jsonBuffer;
+//  JsonObject& root = jsonBuffer.createObject();
 }
 
 void loop() {
+
+//  StaticJsonBuffer<1000> jsonBuffer;
+//  JsonArray& jarray = jsonBuffer.createArray();
+//  JsonObject& jarray = jsonBuffer.createObject();
 
   if (Serial.available() > 0) {
     // read the incoming byte:
@@ -181,9 +194,68 @@ void loop() {
 
   if(moveMotor == true){
 
+    // mode 1 = go to further distance location
+    // mode 2 = scan
     if (mode == 1){
       int maxDis = constrain(array.getMax(), 5, 400);
       int maxIndex = constrain(array.getMaxIndex(), 0, (int)size);
+
+      // When the motor is going to the further distance dump array into json object
+      // and eventually send to processing
+
+//      Serial.println("=======");
+//      Serial.println(array.size());
+//      Serial.println("=======");
+
+      if(printJSON == true){
+//        JsonObject& jarray = jsonBuffer.createObject();
+
+        String d = "";
+        int var = 0;
+//        while(var < 10){
+        while(var < array.size()){
+          // do something repetitive 4 times
+//          JsonObject& data = jarray.createNestedObject();
+//          
+//          data["id"] = var;
+//          data["angle"] = var * 10;
+//          String c = "distance";
+          d.concat(array[var]);
+          d.concat(",");
+//          Serial.print(c);
+          
+//          jarray[c] = array[var];
+          //data["distance"] = array[var];
+//          data["time"] = millis();
+          Serial.println(" ");
+          Serial.println(" ");
+          Serial.println(" ");
+//          Serial.println(array[var]);
+          //Serial.println(d);
+          Serial.println(" ");
+          Serial.println(" ");
+          Serial.println(" ");
+          var++;
+        }
+  
+  //      Serial.println(jarray);
+//        Serial.println(" ");
+//        Serial.println(" ");
+//        Serial.println(" ");
+////        Serial.print(array[var]);
+//        jarray.printTo(Serial);
+//        Serial.println(" ");
+//        Serial.println(" ");
+//        Serial.println(" ");
+  
+        Serial.write(" ");
+        Serial.println("");
+        Serial.println(d);
+        printJSON = false;
+//        delay(1000);
+        
+     }
+
 
       // Serial.println("=======");
       // Serial.println(array.size());
@@ -300,6 +372,7 @@ void loop() {
       // backwards
       motorDirection = 1;
       mode = 1;
+      printJSON = true;
     }
 
   }
