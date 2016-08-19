@@ -33,7 +33,7 @@
 #include <Adafruit_MotorShield.h>
 #include "utility/Adafruit_MS_PWMServoDriver.h"
 
-#include <ArduinoJson.h>
+//#include <ArduinoJson.h>
 
 #define TRIGGER_PIN  12  // Arduino pin tied to trigger pin on the ultrasonic sensor.
 #define ECHO_PIN     11  // Arduino pin tied to echo pin on the ultrasonic sensor.
@@ -72,7 +72,7 @@ int motorCurrentPosition = 0;
 //int motorMaxPosition = 26;
 
 // Half the rotation for testing
-int motorMaxPosition = 20;
+int motorMaxPosition = 26;
 
 bool moveMotor = false;
 bool printJSON = true;
@@ -80,7 +80,7 @@ bool printJSON = true;
 NewPing sonar(TRIGGER_PIN, ECHO_PIN, MAX_DISTANCE); // NewPing setup of pins and maximum distance.
 
 // How frequently are we going to send out a ping (in milliseconds). 50ms would be 20 times a second.
-unsigned int pingSpeed = 40;
+unsigned int pingSpeed = 100;
 // Holds the next ping time.
 unsigned long pingTimer;
 
@@ -99,7 +99,7 @@ const byte size = 26;
 // int rawArray[size] = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25};
 // int sensorArrayValue[size] = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25};
 
-int sensorArrayValue[size] = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19};
+int sensorArrayValue[size] = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25};
 
 // int sensorArrayValue[size];
 Array<int> array = Array<int>(sensorArrayValue, size);
@@ -134,8 +134,8 @@ void loop() {
     incomingByte = Serial.read();
 
     // say what you got:
-    Serial.print("I received: ");
-    Serial.println(incomingByte, DEC);
+//    Serial.print("I received: ");
+//    Serial.println(incomingByte, DEC);
     
   }
 
@@ -170,7 +170,7 @@ void loop() {
   } else if(incomingByte == 99){
     // Serial.println("In Config");
     motorCurrentPosition = motorMaxPosition / 2;
-    Serial.println(motorCurrentPosition);
+//    Serial.println(motorCurrentPosition);
   }
 
   // stop the loop if it is anything other than 'g' (go)
@@ -227,14 +227,14 @@ void loop() {
 //          jarray[c] = array[var];
           //data["distance"] = array[var];
 //          data["time"] = millis();
-          Serial.println(" ");
-          Serial.println(" ");
-          Serial.println(" ");
-//          Serial.println(array[var]);
-          //Serial.println(d);
-          Serial.println(" ");
-          Serial.println(" ");
-          Serial.println(" ");
+//          Serial.println(" ");
+//          Serial.println(" ");
+//          Serial.println(" ");
+////          Serial.println(array[var]);
+//          //Serial.println(d);
+//          Serial.println(" ");
+//          Serial.println(" ");
+//          Serial.println(" ");
           var++;
         }
   
@@ -288,49 +288,49 @@ void loop() {
         // Serial.print("foundIndex: ");
         // Serial.println(foundIndex);
       } else if (waitCurrentMillis - waitPreviousMillis < waitInterval) {
-        Serial.println("*********** ***** *** When does this happen????");
+//        Serial.println("*********** ***** *** When does this happen????");
         paused = true;
       }
 
-      Serial.print("currentDistance: ");
-      Serial.println(currentDistance);
-
-      Serial.print("maxDis: ");
-      Serial.println(maxDis);
+//      Serial.print("currentDistance: ");
+//      Serial.println(currentDistance);
+//
+//      Serial.print("maxDis: ");
+//      Serial.println(maxDis);
 
       // Debugging for answering if change becomes closer
-      Serial.print("1 answer: ");
-      Serial.println( distanceThreshold );
-      Serial.println( abs(maxDis + distanceThreshold) );
-      Serial.println( abs( (int)currentDistance - (int)abs(maxDis - distanceThreshold ) ) );
+//      Serial.print("1 answer: ");
+//      Serial.println( distanceThreshold );
+//      Serial.println( abs(maxDis + distanceThreshold) );
+//      Serial.println( abs( (int)currentDistance - (int)abs(maxDis - distanceThreshold ) ) );
 
       // THIS IS GOOD!
       if( abs((int)currentDistance - (int)abs(maxDis - distanceThreshold )) >= (int)distanceThreshold )
       {
-        Serial.println("Larger=====: ######### BREAK OUT #########  ");
+//        Serial.println("Larger=====: ######### BREAK OUT #########  ");
         paused = false;
         breakout = false;
       } else if((int)abs(maxDis + (distanceThreshold)) <= (int)currentDistance && paused == true){
-        Serial.println("Smaller====: ######### BREAK OUT #########  ");
+//        Serial.println("Smaller====: ######### BREAK OUT #########  ");
         paused = false;
         breakout = false;
       }
       
     } else {
-      Serial.println("&&&&&&&&& IN ELSE!!!!");
+//      Serial.println("&&&&&&&&& IN ELSE!!!!");
       // We need to set this here because the condition above isn't always run / checked.
       // We want the if mode 1 pause to last since this was last called
       waitPreviousMillis = millis();
     }
 
-    Serial.println("Before Pause");
+//    Serial.println("Before Pause");
 
     if(paused == true){
-      Serial.println("In Pause");
+//      Serial.println("In Pause");
       return;
     }
 
-    Serial.println("After Pause");
+//    Serial.println("After Pause");
 
     //  Controls the motor
     if(motorCurrentPosition <= motorMaxPosition && motorDirection == 0){
@@ -352,8 +352,8 @@ void loop() {
       sensorArrayValue[currentStep] = currentDistance;
       mode = 0;
       
-      Serial.print("Current Distance: ");
-      Serial.println(currentDistance);
+//      Serial.print("Current Distance: ");
+//      Serial.println(currentDistance);
     } else {
       sensorArrayValue[currentStep] = 0;
     }
