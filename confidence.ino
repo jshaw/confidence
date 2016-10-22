@@ -62,6 +62,7 @@ const long waitInterval = 10000;
 unsigned long waitPreviousMillis = 0;
 
 int currentDistance = 0;
+int previousDistance = 0;
 
 int motorStep = 1;
 int motorDirection = 0;
@@ -80,14 +81,19 @@ int maxIndex = 0;
 NewPing sonar(TRIGGER_PIN, ECHO_PIN, MAX_DISTANCE); // NewPing setup of pins and maximum distance.
 
 // How frequently are we going to send out a ping (in milliseconds). 50ms would be 20 times a second.
-unsigned int pingSpeed = 100;
+unsigned int pingSpeed = 500;
 // Holds the next ping time.
 unsigned long pingTimer;
 
 unsigned long currentMillis = millis();
 unsigned long waitCurrentMillis = millis();
 
-bool incrementMotor = true;
+//bool setPauseDistance = true;
+//bool spd = true;
+
+int spd = 1;
+
+
 
 
 // Create the motor shield object with the default I2C address
@@ -115,7 +121,7 @@ void setup() {
   // create with the default frequency 1.6KHz
   AFMS.begin();
   // default 10 rpm   
-  myMotor->setSpeed(60);
+  myMotor->setSpeed(50);
 
 //  StaticJsonBuffer<200> jsonBuffer;
 //  JsonObject& root = jsonBuffer.createObject();
@@ -169,20 +175,31 @@ void loop() {
     sonar.ping_timer(echoCheck); // Send out the ping, calls "echoCheck" function every 24uS where you can check the ping status.
   }
 
+//  Serial.println(" ------------------------ ");
+//  Serial.println(moveMotor );
+//  Serial.println(" ------------------------ ");
   if(moveMotor == true){
     
     if(motorCurrentPosition == maxIndex){
-//      delay(1000);
       paused = true;
       breakout = false;
-      waitCurrentMillis = millis();
+
+      if(spd == 1){
+        Serial.println("Here? Really?");
+        previousDistance = currentDistance;
+        spd = 0;
+      }
     }
     
-    if((waitCurrentMillis - waitPreviousMillis >= waitInterval && paused == true) || breakout == true) {
+    waitCurrentMillis = millis();
+//    if((waitCurrentMillis - waitPreviousMillis >= waitInterval && paused == true) || breakout == true) {
+    if((waitCurrentMillis - waitPreviousMillis >= waitInterval) && paused == true) {
       waitPreviousMillis = waitCurrentMillis;
-//      breakout = false;
       paused = false;
+      spd = 1;
     }
+
+    
 
 
 //    Serial.println(" ------------------------ ");
@@ -192,23 +209,33 @@ void loop() {
 //    Serial.println(" ------------------------ ");
     
 
-    if(paused == true){
-    
-        if( abs((int)currentDistance - (int)abs(maxDis - distanceThreshold )) >= (int)distanceThreshold )
-          {
-            Serial.println(maxDis);
-            Serial.println("==========");
-            Serial.println(currentDistance);
-            Serial.println("Larger=====: ######### BREAK OUT #########  ");
-            paused = false;
-            breakout = true;
-    //      } else if((int)abs(maxDis + (distanceThreshold)) <= (int)currentDistance && paused == true){
-        } else if((int)abs(maxDis + (distanceThreshold)) <= (int)currentDistance){
-            Serial.println("Smaller====: ######### BREAK OUT #########  ");
-            paused = false;
-            breakout = true;
-        }
-    }
+//    if(paused == true){
+//
+////        if( abs((int)currentDistance - (int)abs(maxDis - distanceThreshold )) >= (int)distanceThreshold )
+//          if( abs((int)currentDistance - (int)abs(previousDistance + distanceThreshold )) > (int)distanceThreshold )
+//          {
+//            Serial.println(previousDistance);
+//            Serial.println("==========");
+//            Serial.println(currentDistance);
+//            Serial.println("Larger=====: ######### BREAK OUT #########  ");
+//            paused = false;
+//            breakout = true;
+//            
+//            spd = 1;
+//            
+//    //      } else if((int)abs(maxDis + (distanceThreshold)) <= (int)currentDistance && paused == true){
+////        } else if((int)abs(maxDis + (distanceThreshold)) <= (int)currentDistance){
+//
+//
+//          } else if((int)abs(previousDistance + (distanceThreshold)) < (int)currentDistance){
+//            Serial.println("Smaller====: ######### BREAK OUT #########  ");
+//            paused = false;
+//            breakout = true;
+//            
+//            spd = 1;            
+//        }
+//        
+//    }
 
 
     if(paused == true){
@@ -415,20 +442,14 @@ void loop() {
 void echoCheck() { // Timer2 interrupt calls this function every 24uS where you can check the ping status.
   // Don't do anything here!
   if (sonar.check_timer()) { // This is how you check to see if the ping was received.
-    currentDistance = sonar.ping_result / US_ROUNDTRIP_CM;
-     Serial.print("Ping: ");
-     Serial.print(" : ");
-     Serial.print(motorCurrentPosition);
-     Serial.print(" : ");
-     Serial.print(currentDistance); // Ping returned, uS result in ping_result, convert to cm with US_ROUNDTRIP_CM.
-     Serial.println("cm");
+    currentDistance = constrain((sonar.ping_result / US_ROUNDTRIP_CM), 0, 400);
+//     currentDistance = sonar.ping_result / US_ROUNDTRIP_CM;
+//     Serial.print("Ping: ");
+//     Serial.print(motorCurrentPosition);
+//     Serial.print(" : ");
+//     Serial.print(currentDistance); // Ping returned, uS result in ping_result, convert to cm with US_ROUNDTRIP_CM.
+//     Serial.println("cm ");
     moveMotor = true;
-    // int currentStep = abs(motorCurrentPosition) / 2;
-    // int currentStep = motorCurrentPosition;
-    // Serial.print("currentStep");
-    // Serial.println(currentStep);
-    // sensorArrayValue[currentStep] = currentDistance;
-
   } else{
     moveMotor = false;
   }
