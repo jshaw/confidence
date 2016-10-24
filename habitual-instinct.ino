@@ -76,6 +76,12 @@ class Sweeper
   NewPing *sonar;
   int currentDistance;
   int id;
+  int lowPos;
+  int highPos;
+  int lowDistance;
+  int highDistance;
+  unsigned long distancePreviousMillis;
+  const long distanceInterval;
  
 public: 
   Sweeper(int id, int interval, NewPing &sonar)
@@ -84,6 +90,20 @@ public:
     updateInterval = interval;
     id = id;
     increment = 1;
+    distancePreviousMillis = 0;
+    distanceInterval = 5000;
+
+    if(id >=3){
+      lowPos = 70;
+      highPos = 145;
+      lowDistance = 20;
+      highDistance = 100;
+    } else {
+      lowPos = 60;
+      highPos = 170;
+      lowDistance = 10;
+      highDistance = 100;
+    }
   }
   
   void Attach(int pin)
@@ -125,6 +145,10 @@ public:
       pos = 0;  
       servo.write(pos);
     }
+
+    if((millis() - distancePreviousMillis) > distanceInterval){
+      paused = false;
+    }
     
     if((millis() - lastUpdate) > updateInterval)  // time to update
     {
@@ -137,21 +161,48 @@ public:
 //        servo.write(pos);
 //      }
 
-      if (pos > 60 && pos < 120){ 
+      if (pos > lowPos && pos < highPos){ 
 //        if(currentDistance < 100 && currentDistance > 5 ){
-        if(currentDistance < 100 && currentDistance > 5 ){
+        if(currentDistance < highDistance && currentDistance > lowDistance ){
           if(pos > 90){
             pos = 170;
           } else if(pos <= 90){
             pos = 10;
           }
+
+          distancePreviousMillis = millis();
+          paused = true;
+          
           increment = -increment;
         } else {
+          
+          if (paused == true){
+            return true;  
+          }
+        
           pos += increment;
         }
       } else {
+        
+        if (paused == true){
+          return true;  
+        }
+        
         pos += increment;  
       }
+
+    distancePreviousMillis = millis();
+    myservo.write(pos);
+    paused = true;
+  }
+
+  if((currentMillis - distancePreviousMillis) > distanceInterval){
+    paused = false;
+  }
+
+  if(paused == true){
+    return;
+  }
       
       Serial.print("Pos: ");
       Serial.println(pos);
