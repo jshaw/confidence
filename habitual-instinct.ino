@@ -1,9 +1,9 @@
 #include <Arduino.h>
 
 // ---------------------------------------------------------------------------
-// Confidenc Prototype
+// Habitual Instinct
 // By: Jordan Shaw
-// Libs: NewPing, Adafruit MotorShield, AccelStepper, PWMServoDriver
+// Libs: NewPing, Servo, Array
 // ---------------------------------------------------------------------------
 
 // Commands
@@ -29,6 +29,7 @@
 #define DEBUG false
 
 #include <Servo.h>
+//#include <ServoTimer2.h>
 #include <NewPing.h>
 #include <Array.h>
 
@@ -36,20 +37,17 @@
 #define ECHO_PIN      11 // Arduino pin tied to echo pin on ping sensor.
 #define MAX_DISTANCE 400 // Maximum distance we want to ping for (in centimeters). Maximum sensor distance is rated at 400-500cm.
 
-NewPing sonar(TRIGGER_PIN, ECHO_PIN, MAX_DISTANCE); // NewPing setup of pins and maximum distance.
+//NewPing sonar(TRIGGER_PIN, ECHO_PIN, MAX_DISTANCE); // NewPing setup of pins and maximum distance.
 // twelve servo objects can be created on most boards
-Servo myservo;
 
-unsigned int pingSpeed = 50; // How frequently are we going to send out a ping (in milliseconds). 50ms would be 20 times a second.
-unsigned long pingTimer;     // Holds the next ping time.
+//unsigned int pingSpeed = 50; // How frequently are we going to send out a ping (in milliseconds). 50ms would be 20 times a second.
+//unsigned long pingTimer;     // Holds the next ping time.
 
 unsigned long previousMillis = 0;
 const long interval = 10;
 
-
 unsigned long distancePreviousMillis = 0;
 const long distanceInterval = 5000;
-
 
 int increment = 1;
 int control_increment = 10;
@@ -67,13 +65,175 @@ int incomingByte = 115;
 
 bool paused = false;
 
+class Sweeper
+{
+  Servo servo;              // the servo
+//  ServoTimer2 servo;
+  int pos;              // current servo position 
+  int increment;        // increment to move for each interval
+  int  updateInterval;      // interval between updates
+  unsigned long lastUpdate; // last update of position
+  NewPing *sonar;
+  int currentDistance;
+  int id;
+ 
+public: 
+  Sweeper(int id, int interval, NewPing &sonar)
+//  Sweeper(int interval)
+  {
+    updateInterval = interval;
+    id = id;
+    increment = 1;
+  }
+  
+  void Attach(int pin)
+  {
+    servo.attach(pin);
+  }
+  
+  void Detach()
+  {
+    servo.detach();
+  }
+
+  void GoTo(int pos)
+  {
+    servo.write(pos);
+  }
+
+  void PrintDistance(int d)
+  {
+    Serial.print("Print Distance: ");
+    Serial.println(d);    
+//    Serial.println(sonar->ping_result);
+    Serial.println("===================");
+    
+  }
+
+  void SetDistance(int d)
+  {
+    if(id == 1){
+      Serial.print("Class Int D: ");
+      Serial.println(d);
+    }
+    currentDistance = d;
+  }
+  
+  void Update()
+  {
+    if(pos == -1){
+      pos = 0;  
+      servo.write(pos);
+    }
+    
+    if((millis() - lastUpdate) > updateInterval)  // time to update
+    {
+      lastUpdate = millis();
+
+//      Serial.print("currentDistance: ");
+//      Serial.println(currentDistance);
+//      if(pos == -1){
+//        pos = 0;  
+//        servo.write(pos);
+//      }
+
+      if (pos > 60 && pos < 120){ 
+//        if(currentDistance < 100 && currentDistance > 5 ){
+        if(currentDistance < 100 && currentDistance > 5 ){
+          if(pos > 90){
+            pos = 170;
+          } else if(pos <= 90){
+            pos = 10;
+          }
+          increment = -increment;
+        } else {
+          pos += increment;
+        }
+      } else {
+        pos += increment;  
+      }
+      
+      Serial.print("Pos: ");
+      Serial.println(pos);
+      int posConstrain = constrain(pos, 10, 170);
+      servo.write(pos);
+      if ((pos >= 180) || (pos <= 0)) // end of sweep
+      {
+        // reverse direction
+        increment = -increment;
+      }  
+      
+    }
+  }
+};
+
+#define SONAR_NUM     5 // Number of sensors.
+#define MAX_DISTANCE 400 // Maximum distance (in cm) to ping.
+#define PING_INTERVAL 33 // Milliseconds between sensor pings (29ms is about the min to avoid cross-sensor echo).
+
+unsigned long pingTimer[SONAR_NUM]; // Holds the times when the next ping should happen for each sensor.
+unsigned int cm[SONAR_NUM];         // Where the ping distances are stored.
+uint8_t currentSensor = 0;          // Keeps track of which sensor is active.
+
+NewPing sonar[SONAR_NUM] = {     // Sensor object array.
+  NewPing(8, 9, MAX_DISTANCE), // Each sensor's trigger pin, echo pin, and max distance to ping.
+  NewPing(10, 11, MAX_DISTANCE),
+  NewPing(12, 13, MAX_DISTANCE),
+  NewPing(A0, A1, MAX_DISTANCE),
+  NewPing(A2, A3, MAX_DISTANCE)
+};
+
+
+#define OBJECT_NUM  5 // Number of sensors.
+
+// Sensor object array.
+Sweeper sweep[OBJECT_NUM] = {
+//    Sweeper(10),
+//    Sweeper(10),
+//    Sweeper(10),
+//    Sweeper(10),
+//    Sweeper(10)
+  Sweeper(0, 10, sonar[0]),
+  Sweeper(1, 10, sonar[1]),
+  Sweeper(2, 10, sonar[2]),
+  Sweeper(3, 10, sonar[3]),
+  Sweeper(4, 10, sonar[4])
+};
+
+// ==============
+
+// Trying to dynamically create sweeper array of objects... maybe not done easily
+// http://forum.arduino.cc/index.php?topic=184733.0
+
+//Sweeper sweep[OBJECT_NUM] = {};
+//myClass *p[16];
+//Sweeper *sweep[OBJECT_NUM]; 
+//
+//for (uint8_t i = 0; i < OBJECT_NUM; i++){
+//  Sweeper sweep[OBJECT_NUM] = Sweeper(10)
+//  sweep[OBJECT_NUM] = new Sweeper(10)
+//}
+
+// ==============
+
 void setup() {
   Serial.begin(115200);
-  myservo.attach(9);
-  pingTimer = millis();
 
-  pos = 90;
-  myservo.write(pos);
+  //  pingTimer = millis();
+
+  // First ping starts at 75ms, gives time for the Arduino to chill before starting.
+  pingTimer[0] = millis() + 75;
+  // Set the starting time for each sensor.
+  for (uint8_t i = 1; i < SONAR_NUM; i++){
+    pingTimer[i] = pingTimer[i - 1] + PING_INTERVAL;
+  }
+
+  int pin = 3;
+  // Set the starting time for each sensor.
+  for (uint8_t i = 0; i < OBJECT_NUM; i++){
+    sweep[i].Attach(pin);
+    pin++;
+  }
 }
 
 void loop() {
@@ -93,17 +253,24 @@ void loop() {
     
   // next
   } else if(incomingByte == 110){
-    pos -= control_increment;
-    myservo.write(pos);
     // sets it to stop
     incomingByte = 115;
 
+    pos -= control_increment;
+    for (uint8_t i = 0; i < OBJECT_NUM; i++){
+      sweep[i].GoTo(pos);
+    }
+
   // previous
   } else if(incomingByte == 112){
-    pos += control_increment;
-    myservo.write(pos);
     // sets it to stop
     incomingByte = 115;
+    
+    pos += control_increment;
+
+    for (uint8_t i = 0; i < OBJECT_NUM; i++){
+      sweep[i].GoTo(pos);
+    }
 
   // stop
   } else if(incomingByte == 115){
@@ -111,7 +278,9 @@ void loop() {
   // resets position back to 90
   } else if(incomingByte == 99){
     pos = 90;
-    myservo.write(pos);
+    for (uint8_t i = 0; i < OBJECT_NUM; i++){
+      sweep[i].GoTo(pos);
+    }
   }
 
   // stop the loop if it is anything other than 'g' (go)
@@ -120,67 +289,104 @@ void loop() {
   }
   
   unsigned long currentMillis = millis();
-  
-  if (currentMillis < 500 || currentMillis >= pingTimer) {   
-    pingTimer += pingSpeed;  
-    sonar.ping_timer(echoCheck); 
-  }
 
-  float dist = sonar.ping_result / US_ROUNDTRIP_CM;
+  for (uint8_t i = 0; i < OBJECT_NUM; i++){
+    sweep[i].Update();
 
-  if(dist < 30 && dist > 5 ){
-    if(pos > 90){
-      pos = 180;
-    } else if(pos <= 90){
-      pos = 0;
-    }
-    
-    distancePreviousMillis = millis();
-    myservo.write(pos);
-    paused = true;
-  }
-
-  if((currentMillis - distancePreviousMillis) > distanceInterval){
-    paused = false;
-  }
-
-  if(paused == true){
-    return;
-  }
-
-  if((currentMillis - previousMillis) > interval){
-    previousMillis = millis();
-    
-    pos += increment;
-    myservo.write(pos);
-
-    // end of sweep
-    if ((pos >= 180) || (pos <= 0)){
-      // reverse direction
-      increment = -increment;
+    if (millis() >= pingTimer[i]) {         // Is it this sensor's time to ping?
+//      sweep[i].PrintDistance();
+      pingTimer[i] += PING_INTERVAL * SONAR_NUM;  // Set next time this sensor will be pinged.
+      if (i == 0 && currentSensor == SONAR_NUM - 1) oneSensorCycle(); // Sensor ping cycle complete, do something with the results.
+      sonar[currentSensor].timer_stop();          // Make sure previous timer is canceled before starting a new ping (insurance).
+      currentSensor = i;                          // Sensor being accessed.
+      cm[currentSensor] = 0;                      // Make distance zero in case there's no ping echo for this sensor.
+      sonar[currentSensor].ping_timer(echoCheck); // Do the ping (processing continues, interrupt will call echoCheck to look for echo).
     }
   }
   
-  if (pos >= 180 && mode == true){
-    mode = false;
-  } else if (pos <= 0 && mode == false){
-    mode = true;
-  }
+//  if (currentMillis < 500 || currentMillis >= pingTimer) {   
+//    pingTimer += pingSpeed;  
+//    sonar.ping_timer(echoCheck); 
+//  }
+//
+//  float dist = sonar.ping_result / US_ROUNDTRIP_CM;
+//
+//  if(dist < 30 && dist > 5 ){
+//    if(pos > 90){
+//      pos = 180;
+//    } else if(pos <= 90){
+//      pos = 0;
+//    }
+//    
+//    distancePreviousMillis = millis();
+//    myservo.write(pos);
+//    paused = true;
+//  }
+//
+//  if((currentMillis - distancePreviousMillis) > distanceInterval){
+//    paused = false;
+//  }
+//
+//  if(paused == true){
+//    return;
+//  }
+//
+//  if((currentMillis - previousMillis) > interval){
+//    previousMillis = millis();
+//    
+//    pos += increment;
+//    myservo.write(pos);
+//
+//    // end of sweep
+//    if ((pos >= 180) || (pos <= 0)){
+//      // reverse direction
+//      increment = -increment;
+//    }
+//  }
+//  
+//  if (pos >= 180 && mode == true){
+//    mode = false;
+//  } else if (pos <= 0 && mode == false){
+//    mode = true;
+//  }
 }
 
 // Timer2 interrupt calls this function every 24uS where you can check the ping status.
 void echoCheck() {
-  if (sonar.check_timer()) {
-    // Here's where you can add code.
-    Serial.print("Possition: ");
-    Serial.println(pos);
-    Serial.print("Ping: ");
-    // Ping returned, uS result in ping_result, convert to cm with US_ROUNDTRIP_CM.
-    Serial.print(sonar.ping_result / US_ROUNDTRIP_CM);
-    Serial.println("cm");
+//  if (sonar.check_timer()) {
+//    // Here's where you can add code.
+//    Serial.print("Possition: ");
+//    Serial.println(pos);
+//    Serial.print("Ping: ");
+//    // Ping returned, uS result in ping_result, convert to cm with US_ROUNDTRIP_CM.
+//    Serial.print(sonar.ping_result / US_ROUNDTRIP_CM);
+//    Serial.println("cm");
+//
+//    Serial.println("==============");
+//    
+//  }
 
-    Serial.println("==============");
+  if (sonar[currentSensor].check_timer()){
+    cm[currentSensor] = sonar[currentSensor].ping_result / US_ROUNDTRIP_CM;
+     int dis = cm[currentSensor];
+    
+    if(currentSensor == 1){
+      Serial.print("Echo Check dis: ");
+      Serial.println(dis);
+    }
+    sweep[currentSensor].SetDistance(dis);  
     
   }
+}
+
+void oneSensorCycle() { // Sensor ping cycle complete, do something with the results.
+  // The following code would be replaced with your code that does something with the ping results.
+  for (uint8_t i = 0; i < SONAR_NUM; i++) {
+    Serial.print(i);
+    Serial.print("=");
+    Serial.print(cm[i]);
+    Serial.print("cm ");
+  }
+  Serial.println();
 }
 
