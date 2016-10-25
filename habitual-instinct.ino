@@ -37,29 +37,16 @@
 #define ECHO_PIN      11 // Arduino pin tied to echo pin on ping sensor.
 #define MAX_DISTANCE 400 // Maximum distance we want to ping for (in centimeters). Maximum sensor distance is rated at 400-500cm.
 
-//NewPing sonar(TRIGGER_PIN, ECHO_PIN, MAX_DISTANCE); // NewPing setup of pins and maximum distance.
-// twelve servo objects can be created on most boards
-
-//unsigned int pingSpeed = 50; // How frequently are we going to send out a ping (in milliseconds). 50ms would be 20 times a second.
-//unsigned long pingTimer;     // Holds the next ping time.
-
-//unsigned long previousMillis = 0;
-//const long interval = 10;
-//
-//unsigned long distancePreviousMillis = 0;
-//const long distanceInterval = 5000;
-
-//int increment = 1;
 int control_increment = 10;
 
 //boolean mode = true;
 // basic: just move back and forth
 // pattern: offset basic back and forth based on ID
 // patternWave: offset basic back and forth based on position on the board
-// patternWaveSmall: offset basic back and forth based on position on the board
+// patternWaveSmall: offset basic back and forth based on position on the board but less difference between the starting degrees per object
 // react: react
 // reactAndPause: react and pause
-String mode = "patternWaveSmall";
+String mode = "else";
 int pos = 0;    // variable to store the servo position
 
 // Setting up the different values for the sonar values while rotating
@@ -69,8 +56,6 @@ Array<int> array = Array<int>(sensorArrayValue, size);
 
 // defaults to stop
 int incomingByte = 115;
-
-bool paused = false;
 
 class Sweeper
 {
@@ -89,18 +74,19 @@ class Sweeper
   int highDistance;
   unsigned long distancePreviousMillis;
   unsigned long distanceInterval;
+  bool paused;
  
 public: 
-  Sweeper(int id, int interval, NewPing &sonar, int position, String mode)
-//  Sweeper(int interval)
+  Sweeper(int ide, int interval, NewPing &sonar, int position, String mode)
   {
     mode = mode;
     updateInterval = interval;
-    id = id;
+    id = ide;
     pos = position;
     increment = 1;
     distancePreviousMillis = 0;
     distanceInterval = 5000;
+    paused = false;
 
     if(id >=3){
       lowPos = 70;
@@ -117,6 +103,10 @@ public:
   
   void Attach(int pin)
   {
+
+    Serial.print("ID: ");
+    Serial.println(id);
+    
     servo.attach(pin);
   }
   
@@ -148,8 +138,8 @@ public:
     currentDistance = d;
   }
   
-  void Update()
-  {
+  void Update(){
+    
     if(pos == -1){
       pos = 0;  
       servo.write(pos);
@@ -164,7 +154,6 @@ public:
     } else if (mode == "pattern" || mode == "patternWave" || mode == "patternWaveSmall"){
       modePattern();
     } else {
-      
       if((millis() - lastUpdate) > updateInterval)  // time to update
       {
         lastUpdate = millis();
@@ -175,9 +164,9 @@ public:
   //        pos = 0;  
   //        servo.write(pos);
   //      }
-  
+
         if (pos > lowPos && pos < highPos){ 
-  //        if(currentDistance < 100 && currentDistance > 5 ){
+        // if(currentDistance < 100 && currentDistance > 5 ){
           if(currentDistance < highDistance && currentDistance > lowDistance ){
             if(pos > 90){
               pos = 170;
@@ -188,7 +177,6 @@ public:
             distancePreviousMillis = millis();
             paused = true;
             servo.write(pos);
-            
             increment = -increment;
           } else {
             
@@ -212,26 +200,22 @@ public:
           pos += increment;  
         }
   
-        // The duration of the pause after finding something
-  //      if((millis() - distancePreviousMillis) > distanceInterval){
-  //        paused = false;
-  //      }
-  
         // something is happing here that is a bit funny.
         // It doesn't allow for a full reset to the top or bottom sometimes
         // Or here!
         if(paused == true){
           return;
-        }
-        
-        Serial.print("Pos: ");
-        Serial.println(pos);
-        int posConstrain = constrain(pos, 10, 170);
-        servo.write(pos);
-        if ((pos >= 180) || (pos <= 0)) // end of sweep
-        {
-          // reverse direction
-          increment = -increment;
+        } else {
+  //        Serial.print("Pos: ");
+  //        Serial.println(pos);
+          int posConstrain = constrain(pos, 10, 170);
+          servo.write(pos);
+          
+          if ((pos >= 180) || (pos <= 0)) // end of sweep
+          {
+            // reverse direction
+            increment = -increment;
+          }
         }
       }
 
@@ -267,8 +251,8 @@ public:
     {
       lastUpdate = millis();
       Serial.println();
-      Serial.print("ID: ");
-      Serial.println(this->id);
+      Serial.print("ID Pattern: ");
+      Serial.println(id);
       Serial.println("===========");
       pos += increment;
       servo.write(pos);
@@ -360,7 +344,6 @@ void setup() {
   } else if (mode == "patternWaveSmall"){
 
     // 0 20 40 60 80
-    
     sweep[0].SetPatternPos(0);
     sweep[1].SetPatternPos(40);
     sweep[2].SetPatternPos(80);
@@ -504,10 +487,12 @@ void echoCheck() {
     cm[currentSensor] = sonar[currentSensor].ping_result / US_ROUNDTRIP_CM;
      int dis = cm[currentSensor];
     
-    if(currentSensor == 1){
-      Serial.print("Echo Check dis: ");
-      Serial.println(dis);
-    }
+//    if(currentSensor == 1){
+//      Serial.print("Echo Check dis: ID");
+//      Serial.print(currentSensor);
+//      Serial.print(" / Distance: ");
+//      Serial.println(dis);
+//    }
     sweep[currentSensor].SetDistance(dis);  
     
   }
