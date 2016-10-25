@@ -43,16 +43,21 @@
 //unsigned int pingSpeed = 50; // How frequently are we going to send out a ping (in milliseconds). 50ms would be 20 times a second.
 //unsigned long pingTimer;     // Holds the next ping time.
 
-unsigned long previousMillis = 0;
-const long interval = 10;
+//unsigned long previousMillis = 0;
+//const long interval = 10;
+//
+//unsigned long distancePreviousMillis = 0;
+//const long distanceInterval = 5000;
 
-unsigned long distancePreviousMillis = 0;
-const long distanceInterval = 5000;
-
-int increment = 1;
+//int increment = 1;
 int control_increment = 10;
 
-boolean mode = true;
+//boolean mode = true;
+// basic: just move back and forth
+// pattern: offset basic back and forth
+// react: react
+// reactAndPause: react and pause
+String mode = "basic";
 int pos = 0;    // variable to store the servo position
 
 // Setting up the different values for the sonar values while rotating
@@ -81,14 +86,16 @@ class Sweeper
   int lowDistance;
   int highDistance;
   unsigned long distancePreviousMillis;
-  const long distanceInterval;
+  unsigned long distanceInterval;
  
 public: 
-  Sweeper(int id, int interval, NewPing &sonar)
+  Sweeper(int id, int interval, NewPing &sonar, int position, String mode)
 //  Sweeper(int interval)
   {
+    mode = mode;
     updateInterval = interval;
     id = id;
+    pos = position;
     increment = 1;
     distancePreviousMillis = 0;
     distanceInterval = 5000;
@@ -97,7 +104,7 @@ public:
       lowPos = 70;
       highPos = 145;
       lowDistance = 20;
-      highDistance = 100;
+      highDistance = 80;
     } else {
       lowPos = 60;
       highPos = 170;
@@ -172,37 +179,42 @@ public:
 
           distancePreviousMillis = millis();
           paused = true;
+          servo.write(pos);
           
           increment = -increment;
         } else {
           
+          // something is happing here that is a bit funny.
+          // It doesn't allow for a full reset to the top or bottom sometimes
           if (paused == true){
-            return true;  
+            return;  
           }
         
           pos += increment;
         }
       } else {
-        
+
+        // something is happing here that is a bit funny.
+        // It doesn't allow for a full reset to the top or bottom sometimes
+        // Or it happens here
         if (paused == true){
-          return true;  
+          return;  
         }
         
         pos += increment;  
       }
 
-    distancePreviousMillis = millis();
-    myservo.write(pos);
-    paused = true;
-  }
+      // The duration of the pause after finding something
+//      if((millis() - distancePreviousMillis) > distanceInterval){
+//        paused = false;
+//      }
 
-  if((currentMillis - distancePreviousMillis) > distanceInterval){
-    paused = false;
-  }
-
-  if(paused == true){
-    return;
-  }
+      // something is happing here that is a bit funny.
+      // It doesn't allow for a full reset to the top or bottom sometimes
+      // Or here!
+      if(paused == true){
+        return;
+      }
       
       Serial.print("Pos: ");
       Serial.println(pos);
@@ -213,7 +225,6 @@ public:
         // reverse direction
         increment = -increment;
       }  
-      
     }
   }
 };
@@ -238,17 +249,13 @@ NewPing sonar[SONAR_NUM] = {     // Sensor object array.
 #define OBJECT_NUM  5 // Number of sensors.
 
 // Sensor object array.
+// ID, Update Interval, Sonar ID, Start Possition, 
 Sweeper sweep[OBJECT_NUM] = {
-//    Sweeper(10),
-//    Sweeper(10),
-//    Sweeper(10),
-//    Sweeper(10),
-//    Sweeper(10)
-  Sweeper(0, 10, sonar[0]),
-  Sweeper(1, 10, sonar[1]),
-  Sweeper(2, 10, sonar[2]),
-  Sweeper(3, 10, sonar[3]),
-  Sweeper(4, 10, sonar[4])
+  Sweeper(0, 10, sonar[0], 90, mode),
+  Sweeper(1, 10, sonar[1], 90, mode),
+  Sweeper(2, 10, sonar[2], 90, mode),
+  Sweeper(3, 10, sonar[3], 90, mode),
+  Sweeper(4, 10, sonar[4], 90, mode)
 };
 
 // ==============
@@ -269,9 +276,7 @@ Sweeper sweep[OBJECT_NUM] = {
 
 void setup() {
   Serial.begin(115200);
-
-  //  pingTimer = millis();
-
+  
   // First ping starts at 75ms, gives time for the Arduino to chill before starting.
   pingTimer[0] = millis() + 75;
   // Set the starting time for each sensor.
