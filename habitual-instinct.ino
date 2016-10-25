@@ -54,10 +54,12 @@ int control_increment = 10;
 
 //boolean mode = true;
 // basic: just move back and forth
-// pattern: offset basic back and forth
+// pattern: offset basic back and forth based on ID
+// patternWave: offset basic back and forth based on position on the board
+// patternWaveSmall: offset basic back and forth based on position on the board
 // react: react
 // reactAndPause: react and pause
-String mode = "basic";
+String mode = "patternWaveSmall";
 int pos = 0;    // variable to store the servo position
 
 // Setting up the different values for the sonar values while rotating
@@ -156,78 +158,129 @@ public:
     if((millis() - distancePreviousMillis) > distanceInterval){
       paused = false;
     }
-    
-    if((millis() - lastUpdate) > updateInterval)  // time to update
-    {
-      lastUpdate = millis();
 
-//      Serial.print("currentDistance: ");
-//      Serial.println(currentDistance);
-//      if(pos == -1){
-//        pos = 0;  
-//        servo.write(pos);
-//      }
-
-      if (pos > lowPos && pos < highPos){ 
-//        if(currentDistance < 100 && currentDistance > 5 ){
-        if(currentDistance < highDistance && currentDistance > lowDistance ){
-          if(pos > 90){
-            pos = 170;
-          } else if(pos <= 90){
-            pos = 10;
+    if (mode == "basic"){
+      modeBasic();
+    } else if (mode == "pattern" || mode == "patternWave" || mode == "patternWaveSmall"){
+      modePattern();
+    } else {
+      
+      if((millis() - lastUpdate) > updateInterval)  // time to update
+      {
+        lastUpdate = millis();
+  
+  //      Serial.print("currentDistance: ");
+  //      Serial.println(currentDistance);
+  //      if(pos == -1){
+  //        pos = 0;  
+  //        servo.write(pos);
+  //      }
+  
+        if (pos > lowPos && pos < highPos){ 
+  //        if(currentDistance < 100 && currentDistance > 5 ){
+          if(currentDistance < highDistance && currentDistance > lowDistance ){
+            if(pos > 90){
+              pos = 170;
+            } else if(pos <= 90){
+              pos = 10;
+            }
+  
+            distancePreviousMillis = millis();
+            paused = true;
+            servo.write(pos);
+            
+            increment = -increment;
+          } else {
+            
+            // something is happing here that is a bit funny.
+            // It doesn't allow for a full reset to the top or bottom sometimes
+            if (paused == true){
+              return;  
+            }
+          
+            pos += increment;
           }
-
-          distancePreviousMillis = millis();
-          paused = true;
-          servo.write(pos);
-          
-          increment = -increment;
         } else {
-          
+  
           // something is happing here that is a bit funny.
           // It doesn't allow for a full reset to the top or bottom sometimes
+          // Or it happens here
           if (paused == true){
             return;  
           }
-        
-          pos += increment;
+          
+          pos += increment;  
         }
-      } else {
-
+  
+        // The duration of the pause after finding something
+  //      if((millis() - distancePreviousMillis) > distanceInterval){
+  //        paused = false;
+  //      }
+  
         // something is happing here that is a bit funny.
         // It doesn't allow for a full reset to the top or bottom sometimes
-        // Or it happens here
-        if (paused == true){
-          return;  
+        // Or here!
+        if(paused == true){
+          return;
         }
         
-        pos += increment;  
+        Serial.print("Pos: ");
+        Serial.println(pos);
+        int posConstrain = constrain(pos, 10, 170);
+        servo.write(pos);
+        if ((pos >= 180) || (pos <= 0)) // end of sweep
+        {
+          // reverse direction
+          increment = -increment;
+        }
       }
 
-      // The duration of the pause after finding something
-//      if((millis() - distancePreviousMillis) > distanceInterval){
-//        paused = false;
-//      }
+    }// end of else
+  }
 
-      // something is happing here that is a bit funny.
-      // It doesn't allow for a full reset to the top or bottom sometimes
-      // Or here!
-      if(paused == true){
-        return;
-      }
-      
-      Serial.print("Pos: ");
-      Serial.println(pos);
-      int posConstrain = constrain(pos, 10, 170);
+  void modeBasic()
+  {
+    if((millis() - lastUpdate) > updateInterval)  // time to update
+    {
+      lastUpdate = millis();
+      pos += increment;
       servo.write(pos);
       if ((pos >= 180) || (pos <= 0)) // end of sweep
       {
         // reverse direction
         increment = -increment;
-      }  
+      }
     }
   }
-};
+
+  void SetPatternPos(int p)
+  {
+    pos = p;
+    servo.write(pos);
+  }
+
+  // Want to offset movement here...
+  // could be done with the 
+  void modePattern()
+  {
+    if((millis() - lastUpdate) > updateInterval)  // time to update
+    {
+      lastUpdate = millis();
+      Serial.println();
+      Serial.print("ID: ");
+      Serial.println(this->id);
+      Serial.println("===========");
+      pos += increment;
+      servo.write(pos);
+      if ((pos >= 181) || (pos <= 0)) // end of sweep
+      {
+        // reverse direction
+        increment = -increment;
+      }
+    }
+  }
+  
+}; // end of class
 
 #define SONAR_NUM     5 // Number of sensors.
 #define MAX_DISTANCE 400 // Maximum distance (in cm) to ping.
@@ -290,6 +343,31 @@ void setup() {
     sweep[i].Attach(pin);
     pin++;
   }
+
+  if(mode == "pattern"){
+    for (uint8_t i = 0; i < OBJECT_NUM; i++){
+      int mappedPos = ceil(map(i, 0, 4, 0, 180));
+      Serial.println(mappedPos);
+      mappedPos = constrain(mappedPos, 1, 179);
+      sweep[i].SetPatternPos(mappedPos);
+    }  
+  } else if (mode == "patternWave"){
+    sweep[0].SetPatternPos(0);
+    sweep[1].SetPatternPos(90);
+    sweep[2].SetPatternPos(179);
+    sweep[3].SetPatternPos(45);
+    sweep[4].SetPatternPos(135);
+  } else if (mode == "patternWaveSmall"){
+
+    // 0 20 40 60 80
+    
+    sweep[0].SetPatternPos(0);
+    sweep[1].SetPatternPos(40);
+    sweep[2].SetPatternPos(80);
+    sweep[3].SetPatternPos(20);
+    sweep[4].SetPatternPos(60);
+  }
+  
 }
 
 void loop() {
