@@ -45,6 +45,7 @@ int control_increment = 10;
 // pattern: offset basic back and forth based on ID
 // patternWave: offset basic back and forth based on position on the board
 // patternWaveSmall: offset basic back and forth based on position on the board but less difference between the starting degrees per object
+// patternWaveSmall_v2: smaller wave form
 // react: react
 // reactAndPause: react and pause
 String mode = "basic";
@@ -118,26 +119,32 @@ class Sweeper
       //int sensorArrayValue[size] = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25};
       //Array<int> array = Array<int>(sensorArrayValue, size);
 
-      if (id >= 3) {
+//      if (id >= 3) {
         lowPos = 70;
-        highPos = 145;
-        lowDistance = 20;
-        highDistance = 80;
-      } else {
-        lowPos = 60;
-        highPos = 170;
-        lowDistance = 10;
-        highDistance = 100;
-      }
+        highPos = 110;
+//        highPos = 145;
+        lowDistance = 30;
+//        highDistance = 80;
+        highDistance = 120;
+//      } else {
+//        lowPos = 60;
+//        highPos = 170;
+//        lowDistance = 10;
+////        highDistance = 100;
+//        highDistance = 120;
+//      }
     }
 
     void Attach(int pin)
     {
-
-      Serial.print("ID: ");
-      Serial.println(id);
-
-      servo.attach(pin);
+      // if it is not attached, attach
+      // otherwise don't try and re-attach
+      if(servo.attached() == 0){
+        Serial.print("ID: ");
+        Serial.println(id);
+  
+        servo.attach(pin); 
+      }
     }
 
     void Detach()
@@ -334,14 +341,17 @@ class Sweeper
       }
 
       if ((millis() - distancePreviousMillis) > distanceInterval) {
+
+        // reattach servo
         paused = false;
       }
 
       if (mode == "basic") {
         modeBasic();
-      } else if (mode == "pattern" || mode == "patternWave" || mode == "patternWaveSmall") {
+      } else if (mode == "pattern" || mode == "patternWave" || mode == "patternWaveSmall" || mode == "patternWaveSmall_v2") {
         modePattern();
       } else {
+        // this is the react
         if ((millis() - lastUpdate) > updateInterval) // time to update
         {
           lastUpdate = millis();
@@ -365,6 +375,7 @@ class Sweeper
               distancePreviousMillis = millis();
               paused = true;
               servo.write(pos);
+              // detatch servo here
               increment = -increment;
             } else {
 
@@ -382,6 +393,8 @@ class Sweeper
             // It doesn't allow for a full reset to the top or bottom sometimes
             // Or it happens here
             if (paused == true) {
+              // check if detatched, if not
+              // detatch servo here
               return;
             }
 
@@ -392,6 +405,8 @@ class Sweeper
           // It doesn't allow for a full reset to the top or bottom sometimes
           // Or here!
           if (paused == true) {
+            // check if detatched, if not
+            // detatch servo herer
             return;
           } else {
             //        Serial.print("Pos: ");
@@ -459,7 +474,8 @@ class Sweeper
 
 }; // end of class
 
-#define SONAR_NUM     5 // Number of sensors.
+//#define SONAR_NUM     5 // Number of sensors.
+#define SONAR_NUM     13 // Number of sensors.
 #define MAX_DISTANCE 400 // Maximum distance (in cm) to ping.
 #define PING_INTERVAL 33 // Milliseconds between sensor pings (29ms is about the min to avoid cross-sensor echo).
 
@@ -472,21 +488,45 @@ NewPing sonar[SONAR_NUM] = {     // Sensor object array.
   NewPing(10, 11, MAX_DISTANCE),
   NewPing(12, 13, MAX_DISTANCE),
   NewPing(A0, A1, MAX_DISTANCE),
-  NewPing(A2, A3, MAX_DISTANCE)
+  NewPing(A2, A3, MAX_DISTANCE),
+
+  NewPing(A4, A5, MAX_DISTANCE),
+  NewPing(A6, A7, MAX_DISTANCE),
+  NewPing(A8, A9, MAX_DISTANCE),
+  NewPing(A10, A11, MAX_DISTANCE),
+  NewPing(A12, A13, MAX_DISTANCE),
+  NewPing(A14, A15, MAX_DISTANCE),
+  NewPing(38, 39, MAX_DISTANCE),
+  NewPing(40, 41, MAX_DISTANCE)
 };
 
 
-#define OBJECT_NUM  5 // Number of sensors.
+//#define OBJECT_NUM  5 // Number of sensors.
+//#define OBJECT_NUM_V2  8 // Number of sensors.
+//#define OBJECT_NUM_TOTAL  13 // Number of sensors.
+
+#define OBJECT_NUM  13 // Number of sensors.
 
 // Sensor object array.
-// ID, Update Interval, Sonar ID, Start Possition,
+// ID, Update Interval, Sonar ID, Start Possition, mode
 Sweeper sweep[OBJECT_NUM] = {
   Sweeper(0, 20, sonar[0], 0, mode),
   Sweeper(1, 20, sonar[1], 0, mode),
   Sweeper(2, 20, sonar[2], 0, mode),
   Sweeper(3, 20, sonar[3], 0, mode),
-  Sweeper(4, 20, sonar[4], 0, mode)
+  Sweeper(4, 20, sonar[4], 0, mode),
+
+  
+  Sweeper(5, 20, sonar[5], 0, mode),
+  Sweeper(6, 20, sonar[6], 0, mode),
+  Sweeper(7, 20, sonar[7], 0, mode),
+  Sweeper(8, 20, sonar[8], 0, mode),
+  Sweeper(9, 20, sonar[9], 0, mode),
+  Sweeper(10, 20, sonar[10], 0, mode),
+  Sweeper(11, 20, sonar[11], 0, mode),
+  Sweeper(12, 20, sonar[12], 0, mode)
 };
+
 
 // ==============
 
@@ -526,7 +566,7 @@ void setup() {
     pingTimer[i] = pingTimer[i - 1] + PING_INTERVAL;
   }
 
-  int pin = 3;
+  int pin = 22;
   // Set the starting time for each sensor.
   for (uint8_t i = 0; i < OBJECT_NUM; i++) {
     sweep[i].Attach(pin);
@@ -541,8 +581,6 @@ void setup() {
       // Commented out oct 30 evenint
       //Serial.println(mappedPos);
 
-
-      
       mappedPos = constrain(mappedPos, 1, 179);
       sweep[i].SetPatternPos(mappedPos);
     }
@@ -554,12 +592,37 @@ void setup() {
     sweep[4].SetPatternPos(135);
   } else if (mode == "patternWaveSmall") {
 
-    // 0 20 40 60 80
-    sweep[0].SetPatternPos(0);
-    sweep[1].SetPatternPos(40);
+    // 0 20 40 60 80 100 120 140...
+    sweep[0].SetPatternPos(40);
+    sweep[1].SetPatternPos(60);
     sweep[2].SetPatternPos(80);
-    sweep[3].SetPatternPos(20);
-    sweep[4].SetPatternPos(60);
+    sweep[3].SetPatternPos(100);
+    sweep[4].SetPatternPos(120);
+    sweep[5].SetPatternPos(140);
+    sweep[6].SetPatternPos(160);
+    sweep[7].SetPatternPos(140);
+    sweep[8].SetPatternPos(160);
+    sweep[9].SetPatternPos(178);
+    sweep[10].SetPatternPos(0);
+    sweep[11].SetPatternPos(120);
+    sweep[12].SetPatternPos(40);
+    
+  } else if (mode == "patternWaveSmall_v2") {
+
+    // 0 20 40 60 80 100 120 140...
+    sweep[0].SetPatternPos(50);
+    sweep[1].SetPatternPos(60);
+    sweep[2].SetPatternPos(70);
+    sweep[3].SetPatternPos(80);
+    sweep[4].SetPatternPos(90);
+    sweep[5].SetPatternPos(100);
+    sweep[6].SetPatternPos(110);
+    sweep[7].SetPatternPos(120);
+    sweep[8].SetPatternPos(130);
+    sweep[9].SetPatternPos(40);
+    sweep[10].SetPatternPos(30);
+    sweep[11].SetPatternPos(20);
+    sweep[12].SetPatternPos(10);
   }
 
   establishContact();
@@ -595,7 +658,15 @@ void loop() {
 
   // go
   if (incomingByte == 103) {
+    
+    int pin = 22;
+    // Set the starting time for each sensor.
+    for (uint8_t i = 0; i < OBJECT_NUM; i++) {
+      sweep[i].Attach(pin);
+      pin++;
+    }
 
+  
     // next
   } else if (incomingByte == 110) {
     // sets it to stop
@@ -619,6 +690,14 @@ void loop() {
 
     // stop
   } else if (incomingByte == 115) {
+
+    // detatch all motors to save energy / motor life span
+    int pin = 22;
+    // Set the starting time for each sensor.
+    for (uint8_t i = 0; i < OBJECT_NUM; i++) {
+      sweep[i].Detach();
+      pin++;
+    }
 
     // resets position back to 90
   } else if (incomingByte == 99) {
