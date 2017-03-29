@@ -34,8 +34,8 @@
 #include <NewPing.h>
 #include <Array.h>
 
-#define TRIGGER_PIN   12 // Arduino pin tied to trigger pin on ping sensor.
-#define ECHO_PIN      11 // Arduino pin tied to echo pin on ping sensor.
+//#define TRIGGER_PIN   12 // Arduino pin tied to trigger pin on ping sensor.
+//#define ECHO_PIN      11 // Arduino pin tied to echo pin on ping sensor.
 #define MAX_DISTANCE 400 // Maximum distance we want to ping for (in centimeters). Maximum sensor distance is rated at 400-500cm.
 
 int control_increment = 10;
@@ -62,10 +62,7 @@ int incomingByte = 115;
 class Sweeper
 {
     Servo servo;              // the servo
-
 //    StaticJsonBuffer StaticJsonBuffer;
-    
-    //  ServoTimer2 servo;
     int pos;              // current servo position
     int increment;        // increment to move for each interval
     int  updateInterval;      // interval between updates
@@ -81,6 +78,10 @@ class Sweeper
     unsigned long distanceInterval;
     bool paused;
     boolean printJSON = true;
+    // sendJSON can be true or false. Sends over serial or doesn't.
+    // Help for debugging buffer limig
+    boolean sendJSON = false;
+    boolean storeDataJSON = false;
     int arrayIndex;
     
 //    StaticJsonBuffer<1400> *jsonBuffer;
@@ -107,7 +108,9 @@ class Sweeper
     {
       mode = mode;
       updateInterval = interval;
-      id = ide;
+//      id = ide;
+      // makes sure the ID never gets out of the number of objects
+      id = constrain(ide, 0, 13);
       pos = position;
       increment = 2;
       distancePreviousMillis = 0;
@@ -140,21 +143,31 @@ class Sweeper
       // if it is not attached, attach
       // otherwise don't try and re-attach
       if(servo.attached() == 0){
+
+        int idc = constrain(id, 0, 13);
         Serial.print("ID: ");
-        Serial.println(id);
-  
+        Serial.print(id);
+        Serial.print(" idc: ");
+        Serial.println(idc);
+        
         servo.attach(pin); 
       }
     }
 
     void Detach()
     {
-      servo.detach();
+      Serial.print("DETATCHING ");
+//      servo.detach();
     }
 
     void GoTo(int pos)
     {
       servo.write(pos);
+    }
+
+    int isAttached()
+    {
+      return servo.attached();
     }
 
     void PrintDistance(int d)
@@ -174,7 +187,10 @@ class Sweeper
       }
       currentDistance = d;
 
-      StoreData(currentDistance);
+      if(storeDataJSON == true){
+        Serial.println("===================");
+        StoreData(currentDistance);
+      }
     }
 
     void SendData()
@@ -223,16 +239,18 @@ class Sweeper
 //          var++;
 //        }
 
-
-      if (printJSON == true) {
-        jarray.printTo(Serial);
-        Serial.println("");
-//        jsonBuffer.clear();
-//        jsonBuffer = StaticJsonBuffer<1400>();
-//        JsonArray& jarray = jsonBuffer.createArray();
-//        clear(jsonBuffer);
-        printJSON = false;
-        arrayIndex = 0;
+      // helping debug the serial buffer issue
+      if(sendJSON == true){
+        if (printJSON == true) {
+          jarray.printTo(Serial);
+          Serial.println("");
+  //        jsonBuffer.clear();
+  //        jsonBuffer = StaticJsonBuffer<1400>();
+  //        JsonArray& jarray = jsonBuffer.createArray();
+  //        clear(jsonBuffer);
+          printJSON = false;
+          arrayIndex = 0;
+        }
       }
 
 
@@ -474,8 +492,7 @@ class Sweeper
 
 }; // end of class
 
-//#define SONAR_NUM     5 // Number of sensors.
-#define SONAR_NUM     13 // Number of sensors.
+#define SONAR_NUM     5 // Number of sensors.
 #define MAX_DISTANCE 400 // Maximum distance (in cm) to ping.
 #define PING_INTERVAL 33 // Milliseconds between sensor pings (29ms is about the min to avoid cross-sensor echo).
 
@@ -488,16 +505,16 @@ NewPing sonar[SONAR_NUM] = {     // Sensor object array.
   NewPing(10, 11, MAX_DISTANCE),
   NewPing(12, 13, MAX_DISTANCE),
   NewPing(A0, A1, MAX_DISTANCE),
-  NewPing(A2, A3, MAX_DISTANCE),
+  NewPing(A2, A3, MAX_DISTANCE)
 
-  NewPing(A4, A5, MAX_DISTANCE),
-  NewPing(A6, A7, MAX_DISTANCE),
-  NewPing(A8, A9, MAX_DISTANCE),
-  NewPing(A10, A11, MAX_DISTANCE),
-  NewPing(A12, A13, MAX_DISTANCE),
-  NewPing(A14, A15, MAX_DISTANCE),
-  NewPing(38, 39, MAX_DISTANCE),
-  NewPing(40, 41, MAX_DISTANCE)
+//  NewPing(A4, A5, MAX_DISTANCE),
+//  NewPing(A6, A7, MAX_DISTANCE),
+//  NewPing(A8, A9, MAX_DISTANCE),
+//  NewPing(A10, A11, MAX_DISTANCE),
+//  NewPing(A12, A13, MAX_DISTANCE),
+//  NewPing(A14, A15, MAX_DISTANCE),
+//  NewPing(38, 39, MAX_DISTANCE),
+//  NewPing(40, 41, MAX_DISTANCE)
 };
 
 
@@ -505,7 +522,7 @@ NewPing sonar[SONAR_NUM] = {     // Sensor object array.
 //#define OBJECT_NUM_V2  8 // Number of sensors.
 //#define OBJECT_NUM_TOTAL  13 // Number of sensors.
 
-#define OBJECT_NUM  13 // Number of sensors.
+#define OBJECT_NUM  5 // Number of sensors.
 
 // Sensor object array.
 // ID, Update Interval, Sonar ID, Start Possition, mode
@@ -514,17 +531,16 @@ Sweeper sweep[OBJECT_NUM] = {
   Sweeper(1, 20, sonar[1], 0, mode),
   Sweeper(2, 20, sonar[2], 0, mode),
   Sweeper(3, 20, sonar[3], 0, mode),
-  Sweeper(4, 20, sonar[4], 0, mode),
-
+  Sweeper(4, 20, sonar[4], 0, mode)
   
-  Sweeper(5, 20, sonar[5], 0, mode),
-  Sweeper(6, 20, sonar[6], 0, mode),
-  Sweeper(7, 20, sonar[7], 0, mode),
-  Sweeper(8, 20, sonar[8], 0, mode),
-  Sweeper(9, 20, sonar[9], 0, mode),
-  Sweeper(10, 20, sonar[10], 0, mode),
-  Sweeper(11, 20, sonar[11], 0, mode),
-  Sweeper(12, 20, sonar[12], 0, mode)
+//  Sweeper(5, 20, sonar[5], 0, mode),
+//  Sweeper(6, 20, sonar[6], 0, mode),
+//  Sweeper(7, 20, sonar[7], 0, mode),
+//  Sweeper(8, 20, sonar[8], 0, mode),
+//  Sweeper(9, 20, sonar[9], 0, mode),
+//  Sweeper(10, 20, sonar[10], 0, mode),
+//  Sweeper(11, 20, sonar[11], 0, mode),
+//  Sweeper(12, 20, sonar[12], 0, mode)
 };
 
 
@@ -545,7 +561,6 @@ Sweeper sweep[OBJECT_NUM] = {
 // ==============
 
 void setup() {
-//  9600
 //  Serial.begin(9600);
    Serial.begin(115200);
 
@@ -577,7 +592,6 @@ void setup() {
     for (uint8_t i = 0; i < OBJECT_NUM; i++) {
       int mappedPos = ceil(map(i, 0, 4, 0, 180));
 
-      
       // Commented out oct 30 evenint
       //Serial.println(mappedPos);
 
@@ -631,7 +645,7 @@ void setup() {
 
 void establishContact() {
   while (Serial.available() <= 0) {
-    Serial.print('A');   // send a capital A
+    Serial.println('A');   // send a capital A
     delay(300);
   }
 }
@@ -662,7 +676,8 @@ void loop() {
     int pin = 22;
     // Set the starting time for each sensor.
     for (uint8_t i = 0; i < OBJECT_NUM; i++) {
-      sweep[i].Attach(pin);
+      Serial.println(i);
+      //sweep[i].Attach(pin);
       pin++;
     }
 
@@ -674,8 +689,11 @@ void loop() {
 
     pos -= control_increment;
     for (uint8_t i = 0; i < OBJECT_NUM; i++) {
-      sweep[i].GoTo(pos);
+      if(sweep[i].isAttached() == 0){
+        sweep[i].GoTo(pos);
+      }
     }
+    return;
 
     // previous
   } else if (incomingByte == 112) {
@@ -687,6 +705,7 @@ void loop() {
     for (uint8_t i = 0; i < OBJECT_NUM; i++) {
       sweep[i].GoTo(pos);
     }
+    return;
 
     // stop
   } else if (incomingByte == 115) {
@@ -695,22 +714,27 @@ void loop() {
     int pin = 22;
     // Set the starting time for each sensor.
     for (uint8_t i = 0; i < OBJECT_NUM; i++) {
-      sweep[i].Detach();
+      //sweep[i].Detach();
       pin++;
     }
+    return;
 
     // resets position back to 90
   } else if (incomingByte == 99) {
+    Serial.println("//// in reset");
     pos = 90;
     for (uint8_t i = 0; i < OBJECT_NUM; i++) {
       sweep[i].GoTo(pos);
     }
+    return;
+  } else {
+    // run through as a go!
   }
 
   // stop the loop if it is anything other than 'g' (go)
-  if (incomingByte != 103) {
-    return;
-  }
+//  if (incomingByte != 103) {
+//    return;
+//  }
 
   unsigned long currentMillis = millis();
 
