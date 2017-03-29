@@ -56,6 +56,9 @@ int incomingByte = 115;
 class Sweeper
 {
     SimplexNoise sn;
+
+    int pin_cache;
+
     int buttonPushCounter = 1;
     int min_degree = 0;
     int max_degree = 0;
@@ -83,14 +86,10 @@ class Sweeper
 
     String sweepString = "";
 
-    // old vars
-    unsigned long distancePreviousMillis;
-    unsigned long distanceInterval;
-    // new vars
     unsigned long pausedPreviousMillis;
     unsigned long pausedInterval;
     bool paused;
-    // == // == 
+
     boolean printJSON = true;
     boolean publish_data = false;
 
@@ -135,10 +134,7 @@ class Sweeper
       id = constrain(ide, 0, 13);
       pos = position;
       increment = 2;
-      distancePreviousMillis = 0;
-      distanceInterval = 5000;
       paused = false;
-//      arrayIndex = 0;
 
       for (int thisReading = 0; thisReading < numReadings; thisReading++) {
         readings[thisReading] = 0;
@@ -160,15 +156,18 @@ class Sweeper
       // if it is not attached, attach
       // otherwise don't try and re-attach
       if(servo.attached() == 0){
-
-//        int idc = constrain(id, 0, 13);
-//        Serial.print("ID: ");
-//        Serial.print(id);
-//        Serial.print(" idc: ");
-//        Serial.println(idc);
-        
         servo.attach(pin); 
       }
+
+      if(!pin_cache){
+        PinCache(pin);
+      }
+
+
+    }
+
+    void PinCache (int pin){
+      pin_cache = pin;
     }
 
     void Detach()
@@ -201,20 +200,6 @@ class Sweeper
       Serial.println("===================");
 
     }
-
-//    void SetDistance(int d)
-//    {
-//      if (id == 1) {
-////        Serial.print("Class Int D: ");
-////        Serial.println(d);
-//      }
-//      currentDistance = d;
-//
-//      if(storeDataJSON == true){
-//        Serial.println("===================");
-//        StoreData(currentDistance);
-//      }
-//    }
 
     void SetDistance(int d)
     {
@@ -268,89 +253,6 @@ class Sweeper
       sweepString = "";
     }
 
-//    void SendData()
-//    {
-////      StaticJsonBuffer<1400> jsonBuffer;
-////      JsonArray& jarray = jsonBuffer.createArray();
-//
-//      // TODO:
-//      // NEED TO READ all of the 
-//
-////      for(int i = 0; i < array.size(); i++){
-////        JsonObject& data = jarray.createNestedObject(); 
-////        String stringToSplit = array[i];
-////        int commaIndex = stringToSplit.indexOf('/');
-////        int secondCommaIndex = stringToSplit.indexOf('/', commaIndex+1);
-////        String firstValue = stringToSplit.substring(0, commaIndex);
-////        String secondValue = stringToSplit.substring(commaIndex+1, secondCommaIndex);
-////        String thirdValue = stringToSplit.substring(secondCommaIndex+1); //To the end of the string  
-//////        data["id"] = var;
-//////        data["ang"] = (float)var * 6.9;
-//////        data["dst"] = (int)random(0, 350); 
-////
-////          data["id"] = firstValue;
-////          data["ang"] = secondValue;
-////          data["dst"] = thirdValue;
-////
-////      }
-//
-////      Serial.write("---");
-////      if (printJSON == true) {
-////
-//////        String d = "";
-////        String d = "[";
-////        d.concat(id);
-////        d.concat(",");
-////        int var = 0;
-////        //  while(var < 10){
-////        while (var < array.size()) {
-////
-////          d.concat(array[var]);
-////          
-////          if(var != (array.size()-1)){
-////            d.concat(",");
-////          }
-////          
-////          var++;
-////        }
-//
-//      // helping debug the serial buffer issue
-//      if(sendJSON == true){
-//        if (printJSON == true) {
-//          jarray.printTo(Serial);
-//          Serial.println("");
-//  //        jsonBuffer.clear();
-//  //        jsonBuffer = StaticJsonBuffer<1400>();
-//  //        JsonArray& jarray = jsonBuffer.createArray();
-//  //        clear(jsonBuffer);
-//          printJSON = false;
-//          arrayIndex = 0;
-//        }
-//      }
-//
-//
-//
-//        //      Serial.println(jarray);
-//        //        Serial.println(" ");
-//        //        Serial.println(" ");
-//        //        Serial.println(" ");
-//        ////        Serial.print(array[var]);
-//        //        jarray.printTo(Serial);
-//        //        Serial.println(" ");
-//        //        Serial.println(" ");
-//        //        Serial.println(" ");
-////        d.concat("]");
-////        Serial.write(" ");
-////        Serial.println("");
-////        Serial.println(d);
-////        printJSON = false;
-////                delay(1000);
-//
-////      }
-//
-//
-//    }
-
     void SendBatchData() {
       // helping debug the serial buffer issue
       if(sendJSON == true){
@@ -393,75 +295,6 @@ class Sweeper
       }
     }
 
-//    void StoreData(int currentDistance)
-//    {
-////        JsonObject& data = jarray.createNestedObject();
-//
-////        Serial.println(currentDistance);
-//
-////        data["id"] = id;
-////        data["ang"] = (float)pos;
-////        data["dst"] = (int)currentDistance;
-////        data["tme"] = millis();
-//
-//        String tmp = (String)id;
-//        tmp.concat("/");
-//        tmp.concat((String)pos);
-//        tmp.concat("/");
-//        tmp.concat((String)currentDistance);
-//        
-//        array[arrayIndex] = tmp;
-//        arrayIndex++;
-//
-////        Serial.println(data);
-////        data.printTo(Serial);
-//      
-////      Serial.print("ID: ");
-////      Serial.print(id);
-////      Serial.print("_____");
-////      Serial.println(pos);
-////      if (
-////        (pos == 0)
-////        || (pos == 9)
-////        || (pos == 18)
-////        || (pos == 27)
-////        || (pos == 36)
-////        || (pos == 45)
-////        || (pos == 54)
-////        || (pos == 63)
-////        || (pos == 72)
-////        || (pos == 81)
-////        || (pos == 90)
-////        || (pos == 99)
-////        || (pos == 108)
-////        || (pos == 117)
-////        || (pos == 126)
-////        || (pos == 135)
-////        || (pos == 144)
-////        || (pos == 153)
-////        || (pos == 162)
-////        || (pos == 171)
-////        || (pos == 180)
-////      ) {
-////        int idx = 180 / pos;
-//////        Serial.print("IDX: ");
-//////        Serial.println(idx);
-////        sensorArrayValue[idx] = currentDistance;
-////      }
-//
-////      Serial.print("pos: ");
-////      Serial.println(pos);
-//
-////      Serial.write("pos: ");
-////      Serial.write(pos);
-//
-////      if (pos == 10 || pos == 170){
-//      if (pos < 5 || pos > 175){
-//        printJSON = true;
-//        SendData();
-//      }
-//    }
-
     void resetScanValues(){
       //jarray = jsonBuffer->createArray();
       //jarray.clear();
@@ -474,7 +307,7 @@ class Sweeper
         servo.write(pos);
       }
 
-      if ((millis() - distancePreviousMillis) > distanceInterval) {
+      if ((millis() - pausedPreviousMillis) > pausedInterval) {
 
         // reattach servo
         paused = false;
@@ -570,7 +403,8 @@ class Sweeper
           } else {
             if(servo.attached() == false){
               // TODO... Pass IN THE PIN ID SO REF HERE
-//              servo.attach(16);
+              servo.attach(pin_cache);
+
             }
             servo.write(pos);
           }
@@ -581,9 +415,9 @@ class Sweeper
             {
               // send data through serial here
               SendBatchData();
-//              servo.detach();
+              servo.detach();
                 // TODO... Pass IN THE PIN ID SO REF HERE
-//              servo.attach(16);
+              servo.attach(pin_cache);
               // reverse direction
               increment = -increment;
             }
@@ -598,8 +432,7 @@ class Sweeper
         }
 
 
-
-
+      // This is for the other patterns methods... this needs to be integrated into the above interactions
       } else if (mode == "pattern" || mode == "patternWave" || mode == "patternWaveSmall" || mode == "patternWaveSmall_v2") {
         modePattern();
       } else {
@@ -617,7 +450,7 @@ class Sweeper
                 pos = 10;
               }
 
-              distancePreviousMillis = millis();
+              pausedPreviousMillis = millis();
               paused = true;
               servo.write(pos);
               // detatch servo here
@@ -654,8 +487,6 @@ class Sweeper
             // detatch servo herer
             return;
           } else {
-            //        Serial.print("Pos: ");
-            //        Serial.println(pos);
             int posConstrain = constrain(pos, 10, 170);
             servo.write(pos);
 
@@ -723,7 +554,6 @@ NewPing sonar[SONAR_NUM] = {     // Sensor object array.
   NewPing(A13, 49, MAX_DISTANCE),
   NewPing(A14, 51, MAX_DISTANCE),
   NewPing(A15, 53, MAX_DISTANCE),
-//  ,
   NewPing(52, 33, MAX_DISTANCE),
   NewPing(50, 35, MAX_DISTANCE),
   NewPing(48, 37, MAX_DISTANCE),
@@ -966,11 +796,6 @@ void loop() {
     // run through as a go!
   }
 
-  // stop the loop if it is anything other than 'g' (go)
-//  if (incomingByte != 103) {
-//    return;
-//  }
-
   unsigned long currentMillis = millis();
 
   for (uint8_t i = 0; i < OBJECT_NUM; i++) {
@@ -987,51 +812,6 @@ void loop() {
     }
   }
 
-  //  if (currentMillis < 500 || currentMillis >= pingTimer) {
-  //    pingTimer += pingSpeed;
-  //    sonar.ping_timer(echoCheck);
-  //  }
-  //
-  //  float dist = sonar.ping_result / US_ROUNDTRIP_CM;
-  //
-  //  if(dist < 30 && dist > 5 ){
-  //    if(pos > 90){
-  //      pos = 180;
-  //    } else if(pos <= 90){
-  //      pos = 0;
-  //    }
-  //
-  //    distancePreviousMillis = millis();
-  //    myservo.write(pos);
-  //    paused = true;
-  //  }
-  //
-  //  if((currentMillis - distancePreviousMillis) > distanceInterval){
-  //    paused = false;
-  //  }
-  //
-  //  if(paused == true){
-  //    return;
-  //  }
-  //
-  //  if((currentMillis - previousMillis) > interval){
-  //    previousMillis = millis();
-  //
-  //    pos += increment;
-  //    myservo.write(pos);
-  //
-  //    // end of sweep
-  //    if ((pos >= 180) || (pos <= 0)){
-  //      // reverse direction
-  //      increment = -increment;
-  //    }
-  //  }
-  //
-  //  if (pos >= 180 && mode == true){
-  //    mode = false;
-  //  } else if (pos <= 0 && mode == false){
-  //    mode = true;
-  //  }
 }
 
 // Timer2 interrupt calls this function every 24uS where you can check the ping status.
