@@ -1,5 +1,6 @@
 #include <Arduino.h>
-#include <ArduinoJson.h>
+//#include <ArduinoJson.h>
+#include <SimplexNoise.h>
 
 // ---------------------------------------------------------------------------
 // Habitual Instinct
@@ -30,13 +31,11 @@
 #define DEBUG false
 
 #include <Servo.h>
-//#include <ServoTimer2.h>
 #include <NewPing.h>
 #include <Array.h>
 
-//#define TRIGGER_PIN   12 // Arduino pin tied to trigger pin on ping sensor.
-//#define ECHO_PIN      11 // Arduino pin tied to echo pin on ping sensor.
-#define MAX_DISTANCE 400 // Maximum distance we want to ping for (in centimeters). Maximum sensor distance is rated at 400-500cm.
+#define MAX_DISTANCE 400 // Maximum distance (in cm) to ping.
+#define PING_INTERVAL 33 // Milliseconds between sensor pings (29ms is about the min to avoid cross-sensor echo).
 
 int control_increment = 10;
 
@@ -51,18 +50,25 @@ int control_increment = 10;
 String mode = "basic";
 int pos = 0;    // variable to store the servo position
 
-// Setting up the different values for the sonar values while rotating
-//const byte size = 26;
-//int sensorArrayValue[size] = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25};
-//Array<int> array = Array<int>(sensorArrayValue, size);
-
 // defaults to stop
 int incomingByte = 115;
 
 class Sweeper
 {
+    SimplexNoise sn;
+    int buttonPushCounter = 1;
+    int min_degree = 0;
+    int max_degree = 0;
+
+    double n;
+    float increase = 0.01;
+    float x = 0.0;
+    float y = 0.0;
+
+    int minAngle = 0;
+    int maxAngle = 180;
+    
     Servo servo;              // the servo
-//    StaticJsonBuffer StaticJsonBuffer;
     int pos;              // current servo position
     int increment;        // increment to move for each interval
     int  updateInterval;      // interval between updates
@@ -74,36 +80,52 @@ class Sweeper
     int highPos;
     int lowDistance;
     int highDistance;
+
+    String sweepString = "";
+
+    // old vars
     unsigned long distancePreviousMillis;
     unsigned long distanceInterval;
+    // new vars
+    unsigned long pausedPreviousMillis;
+    unsigned long pausedInterval;
     bool paused;
+    // == // == 
     boolean printJSON = true;
+    boolean publish_data = false;
+
+    // number of pings collected
+    unsigned long pingTotalCount = 0;
+    // number of pings before send for simplexNoise
+    unsigned long pingRemainderValue = 50;
+    
     // sendJSON can be true or false. Sends over serial or doesn't.
     // Help for debugging buffer limig
-    boolean sendJSON = false;
-    boolean storeDataJSON = false;
-    int arrayIndex;
+//    boolean sendJSON = false;
+//    boolean storeDataJSON = false;
+//    int arrayIndex;
+
+    // this section is for interaction smoothing
+    //===========================
+    static const int numReadings = 5;
+    // the readings from the analog input
+    int readings[numReadings];
+    // the index of the current reading
+    int readIndex = 0;
+    // the running total
+    int total = 0;
+    // the average
+    int average = 0;
+    // END ===========================
+
+    // =============
+    // these two vars are pure debug variels to control what gets sent over serial
+    boolean sendJSON = true;
+    boolean storeDataJSON = true;
+    boolean printStringTitle = false;
+    // =============
     
-//    StaticJsonBuffer<1400> *jsonBuffer;
-//    JsonObject& root = jsonBuffer->createObject();
-//    JsonArray& data = root.createNestedArray("data");
-
-    //  const byte size = 26;
-    //  int sensorArrayValue[size] = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25};
-
-    const byte size = 21;
-    //  int sensorArrayValue[size] = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19};
-    
-//    int sensorArrayValue[21] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20};
-    String sensorArrayValue[21] = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20"};
-    Array<String> array = Array<String>(sensorArrayValue, size);
-
-    //  int incrementArray_lg[31] = {0, 6, 12, 18, 24, 30, 36, 42, 48, 54, 60, 66, 72, 78, 84, 90, 96, 102, 108, 114, 120, 126, 132, 138, 144, 150, 156, 162, 168, 174, 180};
-//    int incrementArray_sm[21] = {0, 9, 18, 27, 36, 45, 54, 63, 72, 81, 90, 99, 108, 117, 126, 135, 144, 153, 162, 171, 180};
-
   public:
-//    StaticJsonBuffer<1400> jsonBuffer;
-//    JsonArray& jarray = jsonBuffer.createArray();
     Sweeper(int ide, int interval, NewPing &sonar, int position, String mode)
     {
       mode = mode;
@@ -116,26 +138,21 @@ class Sweeper
       distancePreviousMillis = 0;
       distanceInterval = 5000;
       paused = false;
-      arrayIndex = 0;
+//      arrayIndex = 0;
 
-      //    const byte size = 26;
-      //int sensorArrayValue[size] = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25};
-      //Array<int> array = Array<int>(sensorArrayValue, size);
+      for (int thisReading = 0; thisReading < numReadings; thisReading++) {
+        readings[thisReading] = 0;
+      }
 
-//      if (id >= 3) {
-        lowPos = 70;
-        highPos = 110;
-//        highPos = 145;
-        lowDistance = 30;
-//        highDistance = 80;
-        highDistance = 120;
-//      } else {
-//        lowPos = 60;
-//        highPos = 170;
-//        lowDistance = 10;
-////        highDistance = 100;
-//        highDistance = 120;
-//      }
+      lowPos = 70;
+      highPos = 110;
+      lowDistance = 30;
+      highDistance = 90;
+
+      pausedPreviousMillis = 0;
+      pausedInterval = 2000;
+      paused = false;
+      
     }
 
     void Attach(int pin)
@@ -144,11 +161,11 @@ class Sweeper
       // otherwise don't try and re-attach
       if(servo.attached() == 0){
 
-        int idc = constrain(id, 0, 13);
-        Serial.print("ID: ");
-        Serial.print(id);
-        Serial.print(" idc: ");
-        Serial.println(idc);
+//        int idc = constrain(id, 0, 13);
+//        Serial.print("ID: ");
+//        Serial.print(id);
+//        Serial.print(" idc: ");
+//        Serial.println(idc);
         
         servo.attach(pin); 
       }
@@ -157,17 +174,23 @@ class Sweeper
     void Detach()
     {
       Serial.print("DETATCHING ");
-//      servo.detach();
+      servo.detach();
+    }
+
+    void SetPos(int startPosition)
+    {
+      pos = startPosition;
+      servo.write(pos);
+    }
+  
+    int isAttached()
+    {
+      return servo.attached();
     }
 
     void GoTo(int pos)
     {
       servo.write(pos);
-    }
-
-    int isAttached()
-    {
-      return servo.attached();
     }
 
     void PrintDistance(int d)
@@ -179,172 +202,265 @@ class Sweeper
 
     }
 
+//    void SetDistance(int d)
+//    {
+//      if (id == 1) {
+////        Serial.print("Class Int D: ");
+////        Serial.println(d);
+//      }
+//      currentDistance = d;
+//
+//      if(storeDataJSON == true){
+//        Serial.println("===================");
+//        StoreData(currentDistance);
+//      }
+//    }
+
     void SetDistance(int d)
     {
-      if (id == 1) {
-//        Serial.print("Class Int D: ");
-//        Serial.println(d);
-      }
       currentDistance = d;
-
+      if(d == 0){
+        return;
+      }
+    
+      // this if statement is to make sure that it doesn't read wierd values while a bit slow
+      // at the top or bottom of the rotation
+      if((pos < 170 || pos > 10) || paused == false){
+        // this is apart of the smoothing algorithm
+        total = total - readings[readIndex];
+        readings[readIndex] = d;
+        total = total + readings[readIndex];
+        readIndex = readIndex + 1;
+    
+        // if we're at the end of the array...
+        if (readIndex >= numReadings) {
+          // ...wrap around to the beginning:
+          readIndex = 0;
+        }
+    
+        // calculate the average:
+        average = total / numReadings;
+      }
+    
+    //    Serial.println("______________");
+    //    Serial.println(currentDistance);
+    //    Serial.println(average);
+    //    Serial.println("===============");
+    
       if(storeDataJSON == true){
-        Serial.println("===================");
         StoreData(currentDistance);
       }
     }
 
-    void SendData()
+    boolean GetPublishDataStatus()
     {
-      StaticJsonBuffer<1400> jsonBuffer;
-      JsonArray& jarray = jsonBuffer.createArray();
+      return publish_data;
+    }
+  
+    String GetPublishData()
+    {
+      return sweepString;
+    }
+  
+    void ResetPublishDataStatus()
+    {
+      publish_data = false;
+      sweepString = "";
+    }
 
-      // TODO:
-      // NEED TO READ all of the 
-
-      for(int i = 0; i < array.size(); i++){
-        JsonObject& data = jarray.createNestedObject(); 
-        String stringToSplit = array[i];
-        int commaIndex = stringToSplit.indexOf('/');
-        int secondCommaIndex = stringToSplit.indexOf('/', commaIndex+1);
-        String firstValue = stringToSplit.substring(0, commaIndex);
-        String secondValue = stringToSplit.substring(commaIndex+1, secondCommaIndex);
-        String thirdValue = stringToSplit.substring(secondCommaIndex+1); //To the end of the string  
-//        data["id"] = var;
-//        data["ang"] = (float)var * 6.9;
-//        data["dst"] = (int)random(0, 350); 
-
-          data["id"] = firstValue;
-          data["ang"] = secondValue;
-          data["dst"] = thirdValue;
-
-      }
-
-//      Serial.write("---");
-//      if (printJSON == true) {
+//    void SendData()
+//    {
+////      StaticJsonBuffer<1400> jsonBuffer;
+////      JsonArray& jarray = jsonBuffer.createArray();
 //
-////        String d = "";
-//        String d = "[";
-//        d.concat(id);
-//        d.concat(",");
-//        int var = 0;
-//        //  while(var < 10){
-//        while (var < array.size()) {
+//      // TODO:
+//      // NEED TO READ all of the 
 //
-//          d.concat(array[var]);
-//          
-//          if(var != (array.size()-1)){
-//            d.concat(",");
-//          }
-//          
-//          var++;
+////      for(int i = 0; i < array.size(); i++){
+////        JsonObject& data = jarray.createNestedObject(); 
+////        String stringToSplit = array[i];
+////        int commaIndex = stringToSplit.indexOf('/');
+////        int secondCommaIndex = stringToSplit.indexOf('/', commaIndex+1);
+////        String firstValue = stringToSplit.substring(0, commaIndex);
+////        String secondValue = stringToSplit.substring(commaIndex+1, secondCommaIndex);
+////        String thirdValue = stringToSplit.substring(secondCommaIndex+1); //To the end of the string  
+//////        data["id"] = var;
+//////        data["ang"] = (float)var * 6.9;
+//////        data["dst"] = (int)random(0, 350); 
+////
+////          data["id"] = firstValue;
+////          data["ang"] = secondValue;
+////          data["dst"] = thirdValue;
+////
+////      }
+//
+////      Serial.write("---");
+////      if (printJSON == true) {
+////
+//////        String d = "";
+////        String d = "[";
+////        d.concat(id);
+////        d.concat(",");
+////        int var = 0;
+////        //  while(var < 10){
+////        while (var < array.size()) {
+////
+////          d.concat(array[var]);
+////          
+////          if(var != (array.size()-1)){
+////            d.concat(",");
+////          }
+////          
+////          var++;
+////        }
+//
+//      // helping debug the serial buffer issue
+//      if(sendJSON == true){
+//        if (printJSON == true) {
+//          jarray.printTo(Serial);
+//          Serial.println("");
+//  //        jsonBuffer.clear();
+//  //        jsonBuffer = StaticJsonBuffer<1400>();
+//  //        JsonArray& jarray = jsonBuffer.createArray();
+//  //        clear(jsonBuffer);
+//          printJSON = false;
+//          arrayIndex = 0;
 //        }
+//      }
+//
+//
+//
+//        //      Serial.println(jarray);
+//        //        Serial.println(" ");
+//        //        Serial.println(" ");
+//        //        Serial.println(" ");
+//        ////        Serial.print(array[var]);
+//        //        jarray.printTo(Serial);
+//        //        Serial.println(" ");
+//        //        Serial.println(" ");
+//        //        Serial.println(" ");
+////        d.concat("]");
+////        Serial.write(" ");
+////        Serial.println("");
+////        Serial.println(d);
+////        printJSON = false;
+////                delay(1000);
+//
+////      }
+//
+//
+//    }
 
+    void SendBatchData() {
       // helping debug the serial buffer issue
       if(sendJSON == true){
-        if (printJSON == true) {
-          jarray.printTo(Serial);
-          Serial.println("");
-  //        jsonBuffer.clear();
-  //        jsonBuffer = StaticJsonBuffer<1400>();
-  //        JsonArray& jarray = jsonBuffer.createArray();
-  //        clear(jsonBuffer);
-          printJSON = false;
-          arrayIndex = 0;
-        }
+          if(sweepString.endsWith("/")){
+            int char_index = sweepString.lastIndexOf("/");
+            sweepString.remove(char_index);
+          }
+    
+          if(printStringTitle == true){
+            Serial.println("");
+            Serial.print("sweepString: ");
+          }
+          Serial.println(sweepString);
+          publish_data = true;
       }
-
-
-
-        //      Serial.println(jarray);
-        //        Serial.println(" ");
-        //        Serial.println(" ");
-        //        Serial.println(" ");
-        ////        Serial.print(array[var]);
-        //        jarray.printTo(Serial);
-        //        Serial.println(" ");
-        //        Serial.println(" ");
-        //        Serial.println(" ");
-//        d.concat("]");
-//        Serial.write(" ");
-//        Serial.println("");
-//        Serial.println(d);
-//        printJSON = false;
-//                delay(1000);
-
-//      }
-
-
     }
 
     void StoreData(int currentDistance)
     {
-//        JsonObject& data = jarray.createNestedObject();
-
-//        Serial.println(currentDistance);
-
-//        data["id"] = id;
-//        data["ang"] = (float)pos;
-//        data["dst"] = (int)currentDistance;
-//        data["tme"] = millis();
-
-        String tmp = (String)id;
-        tmp.concat("/");
-        tmp.concat((String)pos);
-        tmp.concat("/");
-        tmp.concat((String)currentDistance);
-        
-        array[arrayIndex] = tmp;
-        arrayIndex++;
-
-//        Serial.println(data);
-//        data.printTo(Serial);
-      
-//      Serial.print("ID: ");
-//      Serial.print(id);
-//      Serial.print("_____");
-//      Serial.println(pos);
-//      if (
-//        (pos == 0)
-//        || (pos == 9)
-//        || (pos == 18)
-//        || (pos == 27)
-//        || (pos == 36)
-//        || (pos == 45)
-//        || (pos == 54)
-//        || (pos == 63)
-//        || (pos == 72)
-//        || (pos == 81)
-//        || (pos == 90)
-//        || (pos == 99)
-//        || (pos == 108)
-//        || (pos == 117)
-//        || (pos == 126)
-//        || (pos == 135)
-//        || (pos == 144)
-//        || (pos == 153)
-//        || (pos == 162)
-//        || (pos == 171)
-//        || (pos == 180)
-//      ) {
-//        int idx = 180 / pos;
-////        Serial.print("IDX: ");
-////        Serial.println(idx);
-//        sensorArrayValue[idx] = currentDistance;
-//      }
-
-//      Serial.print("pos: ");
-//      Serial.println(pos);
-
-//      Serial.write("pos: ");
-//      Serial.write(pos);
-
-//      if (pos == 10 || pos == 170){
-      if (pos < 5 || pos > 175){
-        printJSON = true;
-        SendData();
+      if(printStringTitle == true){
+        if(String(currentDistance).length() > 0){
+          Serial.print("currentDistance: ");
+          Serial.print((String)currentDistance);
+          Serial.print(" ||||");
+          Serial.println(" ");
+        }
       }
-
+  
+      if(String(currentDistance).length() > 0){
+        String tmp = String(id);
+        tmp.concat(":");
+        tmp.concat(String(pos));
+        tmp.concat(":");
+        tmp.concat(String(currentDistance));
+        
+        sweepString.concat(tmp);
+        sweepString.concat("/");
+  
+        pingTotalCount++;
+      }
     }
+
+//    void StoreData(int currentDistance)
+//    {
+////        JsonObject& data = jarray.createNestedObject();
+//
+////        Serial.println(currentDistance);
+//
+////        data["id"] = id;
+////        data["ang"] = (float)pos;
+////        data["dst"] = (int)currentDistance;
+////        data["tme"] = millis();
+//
+//        String tmp = (String)id;
+//        tmp.concat("/");
+//        tmp.concat((String)pos);
+//        tmp.concat("/");
+//        tmp.concat((String)currentDistance);
+//        
+//        array[arrayIndex] = tmp;
+//        arrayIndex++;
+//
+////        Serial.println(data);
+////        data.printTo(Serial);
+//      
+////      Serial.print("ID: ");
+////      Serial.print(id);
+////      Serial.print("_____");
+////      Serial.println(pos);
+////      if (
+////        (pos == 0)
+////        || (pos == 9)
+////        || (pos == 18)
+////        || (pos == 27)
+////        || (pos == 36)
+////        || (pos == 45)
+////        || (pos == 54)
+////        || (pos == 63)
+////        || (pos == 72)
+////        || (pos == 81)
+////        || (pos == 90)
+////        || (pos == 99)
+////        || (pos == 108)
+////        || (pos == 117)
+////        || (pos == 126)
+////        || (pos == 135)
+////        || (pos == 144)
+////        || (pos == 153)
+////        || (pos == 162)
+////        || (pos == 171)
+////        || (pos == 180)
+////      ) {
+////        int idx = 180 / pos;
+//////        Serial.print("IDX: ");
+//////        Serial.println(idx);
+////        sensorArrayValue[idx] = currentDistance;
+////      }
+//
+////      Serial.print("pos: ");
+////      Serial.println(pos);
+//
+////      Serial.write("pos: ");
+////      Serial.write(pos);
+//
+////      if (pos == 10 || pos == 170){
+//      if (pos < 5 || pos > 175){
+//        printJSON = true;
+//        SendData();
+//      }
+//    }
 
     void resetScanValues(){
       //jarray = jsonBuffer->createArray();
@@ -365,7 +481,125 @@ class Sweeper
       }
 
       if (mode == "basic") {
-        modeBasic();
+        // BIG NOTE
+        // MORE NOTE// NEED TO PUT THIS BACK IN AT SOME POINT OR REFACTOR
+        // modeBasic();
+
+        if((millis() - lastUpdate) > updateInterval)  // time to update
+        {
+          lastUpdate = millis();
+    
+          if (buttonPushCounter == 1){
+            // Sweep
+            min_degree = 0;
+            max_degree = 170;
+            pos += increment;
+          } else  if (buttonPushCounter == 2){
+            // Noise
+            min_degree = 15;
+            max_degree = 155;
+    
+            n = sn.noise(x, y);
+            x += increase;
+      
+            pos = (int)map(n*100, -100, 100, minAngle, maxAngle);
+            
+          } else if (buttonPushCounter == 3){
+            // sweep interact
+            min_degree = 0;
+            max_degree = 170;
+            
+            if (pos > lowPos && pos < highPos) {
+              if (average < highDistance && average > lowDistance ) {
+                
+                if (pos > 90) {
+                  pos = 160;
+                } else if (pos <= 90) {
+                  pos = 10;
+                }
+    
+                // potential put a pause in here..
+                // paused = true;
+              } else {
+                pos += increment;
+              }
+            } else {
+              pos += increment;
+            }
+            
+          } else if (buttonPushCounter == 4) {
+            // noise interact
+            min_degree = 15;
+            max_degree = 155;
+    
+            if(paused == false){
+              n = sn.noise(x, y);
+              x += increase;
+              
+              pos = (int)map(n*100, -100, 100, minAngle, maxAngle);
+            }
+    
+            if(paused == false){
+              if (pos > lowPos && pos < highPos) {
+                highDistance = 80;
+                if (average < highDistance && average > lowDistance ) {
+    
+                  servo.write(pos+10);
+                  delay(100);
+                  servo.write(pos-10);
+                  delay(100);
+                  servo.write(pos);
+                  delay(100);
+    
+                  // potential put a pause in here..
+                  pausedPreviousMillis = millis();
+                  paused = true;
+                } else {
+                  // keep empty
+                }
+              } else {
+                // keep empty
+              }
+            }
+          }
+    
+          // 
+          // =================
+          if (paused == true) {
+            return;
+          } else {
+            if(servo.attached() == false){
+              // TODO... Pass IN THE PIN ID SO REF HERE
+//              servo.attach(16);
+            }
+            servo.write(pos);
+          }
+    
+          if (buttonPushCounter == 1 || buttonPushCounter == 3){
+            // sweep
+            if ((pos >= max_degree) || (pos <= min_degree)) // end of sweep
+            {
+              // send data through serial here
+              SendBatchData();
+//              servo.detach();
+                // TODO... Pass IN THE PIN ID SO REF HERE
+//              servo.attach(16);
+              // reverse direction
+              increment = -increment;
+            }
+          } else if (buttonPushCounter == 2 || buttonPushCounter == 4){
+            // Noise
+            // Send the ping data readings on every nth count
+            if(pingTotalCount % pingRemainderValue == 0){
+              SendBatchData();
+            }
+          }
+
+        }
+
+
+
+
       } else if (mode == "pattern" || mode == "patternWave" || mode == "patternWaveSmall" || mode == "patternWaveSmall_v2") {
         modePattern();
       } else {
@@ -373,13 +607,6 @@ class Sweeper
         if ((millis() - lastUpdate) > updateInterval) // time to update
         {
           lastUpdate = millis();
-
-          //      Serial.print("currentDistance: ");
-          //      Serial.println(currentDistance);
-          //      if(pos == -1){
-          //        pos = 0;
-          //        servo.write(pos);
-          //      }
 
           if (pos > lowPos && pos < highPos) {
             // if(currentDistance < 100 && currentDistance > 5 ){
@@ -472,14 +699,6 @@ class Sweeper
       if ((millis() - lastUpdate) > updateInterval) // time to update
       {
         lastUpdate = millis();
-
-        // Testing commented out oct 30th evening
-//        Serial.println();
-//        Serial.print("ID Pattern: ");
-//        Serial.println(id);
-//        Serial.println("===========");
-
-        
         pos += increment;
         servo.write(pos);
         if ((pos >= 181) || (pos <= 0)) // end of sweep
@@ -492,29 +711,35 @@ class Sweeper
 
 }; // end of class
 
-#define SONAR_NUM     5 // Number of sensors.
-#define MAX_DISTANCE 400 // Maximum distance (in cm) to ping.
-#define PING_INTERVAL 33 // Milliseconds between sensor pings (29ms is about the min to avoid cross-sensor echo).
+#define SONAR_NUM     20 // Number of sensors.
 
 unsigned long pingTimer[SONAR_NUM]; // Holds the times when the next ping should happen for each sensor.
 unsigned int cm[SONAR_NUM];         // Where the ping distances are stored.
 uint8_t currentSensor = 0;          // Keeps track of which sensor is active.
 
 NewPing sonar[SONAR_NUM] = {     // Sensor object array.
-  NewPing(8, 9, MAX_DISTANCE), // Each sensor's trigger pin, echo pin, and max distance to ping.
-  NewPing(10, 11, MAX_DISTANCE),
-  NewPing(12, 13, MAX_DISTANCE),
-  NewPing(A0, A1, MAX_DISTANCE),
-  NewPing(A2, A3, MAX_DISTANCE)
-
-//  NewPing(A4, A5, MAX_DISTANCE),
-//  NewPing(A6, A7, MAX_DISTANCE),
-//  NewPing(A8, A9, MAX_DISTANCE),
-//  NewPing(A10, A11, MAX_DISTANCE),
-//  NewPing(A12, A13, MAX_DISTANCE),
-//  NewPing(A14, A15, MAX_DISTANCE),
-//  NewPing(38, 39, MAX_DISTANCE),
-//  NewPing(40, 41, MAX_DISTANCE)
+  NewPing(A11, 45, MAX_DISTANCE), // Each sensor's trigger pin, echo pin, and max distance to ping.
+  NewPing(A12, 47, MAX_DISTANCE),
+  NewPing(A13, 49, MAX_DISTANCE),
+  NewPing(A14, 51, MAX_DISTANCE),
+  NewPing(A15, 53, MAX_DISTANCE),
+//  ,
+  NewPing(52, 33, MAX_DISTANCE),
+  NewPing(50, 35, MAX_DISTANCE),
+  NewPing(48, 37, MAX_DISTANCE),
+  NewPing(46, 39, MAX_DISTANCE),
+  NewPing(44, 41, MAX_DISTANCE),
+  NewPing(31, 7, MAX_DISTANCE),
+  NewPing(29, 6, MAX_DISTANCE),
+  NewPing(27, 5, MAX_DISTANCE),
+  NewPing(25, 4, MAX_DISTANCE),
+  NewPing(23, 3, MAX_DISTANCE),
+//  // ---------
+  NewPing(9, 2, MAX_DISTANCE),
+  NewPing(10, 18, MAX_DISTANCE),
+  NewPing(11, 19, MAX_DISTANCE),
+  NewPing(12, 20, MAX_DISTANCE),
+  NewPing(13, 21, MAX_DISTANCE)
 };
 
 
@@ -522,7 +747,7 @@ NewPing sonar[SONAR_NUM] = {     // Sensor object array.
 //#define OBJECT_NUM_V2  8 // Number of sensors.
 //#define OBJECT_NUM_TOTAL  13 // Number of sensors.
 
-#define OBJECT_NUM  5 // Number of sensors.
+#define OBJECT_NUM  20 // Number of sensors.
 
 // Sensor object array.
 // ID, Update Interval, Sonar ID, Start Possition, mode
@@ -531,37 +756,30 @@ Sweeper sweep[OBJECT_NUM] = {
   Sweeper(1, 20, sonar[1], 0, mode),
   Sweeper(2, 20, sonar[2], 0, mode),
   Sweeper(3, 20, sonar[3], 0, mode),
-  Sweeper(4, 20, sonar[4], 0, mode)
+  Sweeper(4, 20, sonar[4], 0, mode),
   
-//  Sweeper(5, 20, sonar[5], 0, mode),
-//  Sweeper(6, 20, sonar[6], 0, mode),
-//  Sweeper(7, 20, sonar[7], 0, mode),
-//  Sweeper(8, 20, sonar[8], 0, mode),
-//  Sweeper(9, 20, sonar[9], 0, mode),
-//  Sweeper(10, 20, sonar[10], 0, mode),
-//  Sweeper(11, 20, sonar[11], 0, mode),
-//  Sweeper(12, 20, sonar[12], 0, mode)
+  Sweeper(5, 20, sonar[5], 0, mode),
+  Sweeper(6, 20, sonar[6], 0, mode),
+  Sweeper(7, 20, sonar[7], 0, mode),
+  Sweeper(8, 20, sonar[8], 0, mode),
+  Sweeper(9, 20, sonar[9], 0, mode),
+  Sweeper(10, 20, sonar[10], 0, mode),
+  Sweeper(11, 20, sonar[11], 0, mode),
+  Sweeper(12, 20, sonar[12], 0, mode),
+  Sweeper(13, 20, sonar[13], 0, mode),
+  Sweeper(14, 20, sonar[14], 0, mode),
+  Sweeper(15, 20, sonar[15], 0, mode),
+  Sweeper(16, 20, sonar[16], 0, mode),
+  Sweeper(17, 20, sonar[17], 0, mode),
+  Sweeper(18, 20, sonar[18], 0, mode),
+  Sweeper(19, 20, sonar[19], 0, mode)
 };
 
 
 // ==============
-
-// Trying to dynamically create sweeper array of objects... maybe not done easily
-// http://forum.arduino.cc/index.php?topic=184733.0
-
-//Sweeper sweep[OBJECT_NUM] = {};
-//myClass *p[16];
-//Sweeper *sweep[OBJECT_NUM];
-//
-//for (uint8_t i = 0; i < OBJECT_NUM; i++){
-//  Sweeper sweep[OBJECT_NUM] = Sweeper(10)
-//  sweep[OBJECT_NUM] = new Sweeper(10)
-//}
-
 // ==============
 
 void setup() {
-//  Serial.begin(9600);
    Serial.begin(115200);
 
 //   StaticJsonBuffer<1400> *jsonBuffer;
@@ -570,10 +788,6 @@ void setup() {
     ; // wait for serial port to connect. Needed for native USB port only
   }
 
-//  StaticJsonBuffer<100> jsonBuffer;
-//  JsonObject& root = jsonBuffer.createObject();
-
-
   // First ping starts at 75ms, gives time for the Arduino to chill before starting.
   pingTimer[0] = millis() + 75;
   // Set the starting time for each sensor.
@@ -581,12 +795,39 @@ void setup() {
     pingTimer[i] = pingTimer[i - 1] + PING_INTERVAL;
   }
 
-  int pin = 22;
-  // Set the starting time for each sensor.
-  for (uint8_t i = 0; i < OBJECT_NUM; i++) {
-    sweep[i].Attach(pin);
-    pin++;
-  }
+  // I like this idea, but the pins aren't all in order...
+  // so may have to do this manually
+  // =====
+  //  int pin = 22;
+  //  // Set the starting time for each sensor.
+  //  for (uint8_t i = 0; i < OBJECT_NUM; i++) {
+  //    sweep[i].Attach(pin);
+  //    pin++;
+  //  }
+  //  sweep[0].Attach(pin);
+  // =====// =====// =====// =====
+
+  sweep[0].Attach(A0);
+  sweep[1].Attach(A1);
+  sweep[2].Attach(A2);
+  sweep[3].Attach(A3);
+  sweep[4].Attach(A4);
+  sweep[5].Attach(A5);
+  sweep[6].Attach(A6);
+  sweep[7].Attach(A7);
+  sweep[8].Attach(A8);
+  sweep[9].Attach(A9);
+  sweep[10].Attach(40);
+  sweep[11].Attach(38);
+  sweep[12].Attach(36);
+  sweep[13].Attach(34);
+  sweep[14].Attach(32);
+  sweep[15].Attach(30);
+  sweep[16].Attach(28);
+  sweep[17].Attach(26);
+  sweep[18].Attach(24);
+  sweep[19].Attach(22);
+
 
   if (mode == "pattern") {
     for (uint8_t i = 0; i < OBJECT_NUM; i++) {
@@ -655,14 +896,8 @@ void loop() {
   // read the incoming byte:
   if (Serial.available() > 0) {
     incomingByte = Serial.read();
-//    Serial.write("+=+=+=");
-//    Serial.write(0);
   }
 
-//  Serial.write(1);
-//  Serial.print("qwerqwerqwerqwer");
-//  Serial.write("sasdfasdfasdfasdf");
-//  Serial.println("zxcvzxcvzxcv");
 //  delay(500);
   // g = 103
   // s = 115
@@ -676,7 +911,7 @@ void loop() {
     int pin = 22;
     // Set the starting time for each sensor.
     for (uint8_t i = 0; i < OBJECT_NUM; i++) {
-      Serial.println(i);
+//      Serial.println(i);
       //sweep[i].Attach(pin);
       pin++;
     }
@@ -801,31 +1036,10 @@ void loop() {
 
 // Timer2 interrupt calls this function every 24uS where you can check the ping status.
 void echoCheck() {
-  //  if (sonar.check_timer()) {
-  //    // Here's where you can add code.
-  //    Serial.print("Possition: ");
-  //    Serial.println(pos);
-  //    Serial.print("Ping: ");
-  //    // Ping returned, uS result in ping_result, convert to cm with US_ROUNDTRIP_CM.
-  //    Serial.print(sonar.ping_result / US_ROUNDTRIP_CM);
-  //    Serial.println("cm");
-  //
-  //    Serial.println("==============");
-  //
-  //  }
-
   if (sonar[currentSensor].check_timer()) {
     cm[currentSensor] = sonar[currentSensor].ping_result / US_ROUNDTRIP_CM;
     int dis = cm[currentSensor];
-
-    //    if(currentSensor == 1){
-    //      Serial.print("Echo Check dis: ID");
-    //      Serial.print(currentSensor);
-    //      Serial.print(" / Distance: ");
-    //      Serial.println(dis);
-    //    }
     sweep[currentSensor].SetDistance(dis);
-
   }
 }
 
