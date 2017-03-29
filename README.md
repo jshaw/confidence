@@ -4,13 +4,13 @@ Arduino sketch for my first prototype of an idea realted around avoident robots 
 
 The piece scans the area infront of it's sensors and returns to the location that it detects to have the an object, wall or barrier furthest from it.
 
+
+* [Arduino Simplex Noise](https://github.com/jshaw/SimplexNoise)
+* [New Ping](https://bitbucket.org/teckel12/arduino-new-ping/wiki/Home)
 * [Array Library](https://github.com/jshaw/arduino-array)
-* [ArduinoJson](https://github.com/bblanchon/ArduinoJson)
-* Arduino
+* Arduino Mega
 * Sonar Sensor
-* Stepper Motor
-* Adafruit Motor Driver
-* Timing Belt
+
 
 
 
