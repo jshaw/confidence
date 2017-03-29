@@ -125,7 +125,7 @@ class Sweeper
     // =============
     
   public:
-    Sweeper(int ide, int interval, NewPing &sonar, int position, String mode)
+    Sweeper(int ide, int interval, NewPing &sonar, int position, String mode, unsigned long pcount)
     {
       mode = mode;
       updateInterval = interval;
@@ -135,6 +135,10 @@ class Sweeper
       pos = position;
       increment = 2;
       paused = false;
+      
+      // sets the pingcount offset so it doesn't send all of the scanned data through serial at once.
+      pingTotalCount = pcount;
+
 
       for (int thisReading = 0; thisReading < numReadings; thisReading++) {
         readings[thisReading] = 0;
@@ -580,29 +584,29 @@ NewPing sonar[SONAR_NUM] = {     // Sensor object array.
 #define OBJECT_NUM  20 // Number of sensors.
 
 // Sensor object array.
-// ID, Update Interval, Sonar ID, Start Possition, mode
+// ID, Update Interval, Sonar ID, Start Possition, mode, ping index offset
 Sweeper sweep[OBJECT_NUM] = {
-  Sweeper(0, 20, sonar[0], 0, mode),
-  Sweeper(1, 20, sonar[1], 0, mode),
-  Sweeper(2, 20, sonar[2], 0, mode),
-  Sweeper(3, 20, sonar[3], 0, mode),
-  Sweeper(4, 20, sonar[4], 0, mode),
+  Sweeper(0, 20, sonar[0], 0, mode, 0),
+  Sweeper(1, 20, sonar[1], 0, mode, 2),
+  Sweeper(2, 20, sonar[2], 0, mode, 4),
+  Sweeper(3, 20, sonar[3], 0, mode, 6),
+  Sweeper(4, 20, sonar[4], 0, mode, 8),
   
-  Sweeper(5, 20, sonar[5], 0, mode),
-  Sweeper(6, 20, sonar[6], 0, mode),
-  Sweeper(7, 20, sonar[7], 0, mode),
-  Sweeper(8, 20, sonar[8], 0, mode),
-  Sweeper(9, 20, sonar[9], 0, mode),
-  Sweeper(10, 20, sonar[10], 0, mode),
-  Sweeper(11, 20, sonar[11], 0, mode),
-  Sweeper(12, 20, sonar[12], 0, mode),
-  Sweeper(13, 20, sonar[13], 0, mode),
-  Sweeper(14, 20, sonar[14], 0, mode),
-  Sweeper(15, 20, sonar[15], 0, mode),
-  Sweeper(16, 20, sonar[16], 0, mode),
-  Sweeper(17, 20, sonar[17], 0, mode),
-  Sweeper(18, 20, sonar[18], 0, mode),
-  Sweeper(19, 20, sonar[19], 0, mode)
+  Sweeper(5, 20, sonar[5], 0, mode, 10),
+  Sweeper(6, 20, sonar[6], 0, mode, 12),
+  Sweeper(7, 20, sonar[7], 0, mode, 14),
+  Sweeper(8, 20, sonar[8], 0, mode, 16),
+  Sweeper(9, 20, sonar[9], 0, mode, 18),
+  Sweeper(10, 20, sonar[10], 0, mode, 20),
+  Sweeper(11, 20, sonar[11], 0, mode, 22),
+  Sweeper(12, 20, sonar[12], 0, mode, 24),
+  Sweeper(13, 20, sonar[13], 0, mode, 26),
+  Sweeper(14, 20, sonar[14], 0, mode, 28),
+  Sweeper(15, 20, sonar[15], 0, mode, 30),
+  Sweeper(16, 20, sonar[16], 0, mode, 32),
+  Sweeper(17, 20, sonar[17], 0, mode, 34),
+  Sweeper(18, 20, sonar[18], 0, mode, 36),
+  Sweeper(19, 20, sonar[19], 0, mode, 38)
 };
 
 
