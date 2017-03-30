@@ -47,7 +47,17 @@ int control_increment = 10;
 // patternWaveSmall_v2: smaller wave form
 // react: react
 // reactAndPause: react and pause
-String mode = "basic";
+
+// the mode needs to be rewritten... can also have
+// ===========
+// sweep
+// sweep react
+// sweep react pause
+// noise
+// noise react
+// patternWaveSmall_v2: smaller wave form
+
+String mode = "noise";
 int pos = 0;    // variable to store the servo position
 
 // defaults to stop
@@ -56,6 +66,8 @@ int incomingByte = 115;
 class Sweeper
 {
     SimplexNoise sn;
+
+    unsigned long current_millis;
 
     int pin_cache;
 
@@ -96,13 +108,8 @@ class Sweeper
     // number of pings collected
     unsigned long pingTotalCount = 0;
     // number of pings before send for simplexNoise
-    unsigned long pingRemainderValue = 50;
-    
-    // sendJSON can be true or false. Sends over serial or doesn't.
-    // Help for debugging buffer limig
-//    boolean sendJSON = false;
-//    boolean storeDataJSON = false;
-//    int arrayIndex;
+    // unsigned long pingRemainderValue = 50;
+    unsigned long pingRemainderValue = 25;
 
     // this section is for interaction smoothing
     //===========================
@@ -118,7 +125,8 @@ class Sweeper
     // END ===========================
 
     // =============
-    // these two vars are pure debug variels to control what gets sent over serial
+    // these two vars are pure debug variels to control what gets sent over serial or doesn't
+    // Help for debugging buffer limit
     boolean sendJSON = true;
     boolean storeDataJSON = true;
     boolean printStringTitle = false;
@@ -129,9 +137,10 @@ class Sweeper
     {
       mode = mode;
       updateInterval = interval;
-//      id = ide;
       // makes sure the ID never gets out of the number of objects
-      id = constrain(ide, 0, 13);
+      id = constrain(ide, 0, 19);
+      // id = ide;
+      // id = constrain(ide, 0, 13);
       pos = position;
       increment = 2;
       paused = false;
@@ -139,7 +148,7 @@ class Sweeper
       // sets the pingcount offset so it doesn't send all of the scanned data through serial at once.
       pingTotalCount = pcount;
 
-
+      // sets the smoothing array to base number
       for (int thisReading = 0; thisReading < numReadings; thisReading++) {
         readings[thisReading] = 0;
       }
@@ -147,11 +156,13 @@ class Sweeper
       lowPos = 70;
       highPos = 110;
       lowDistance = 30;
-      highDistance = 90;
+      highDistance = 100;
 
       pausedPreviousMillis = 0;
       pausedInterval = 2000;
       paused = false;
+
+      x = (float)id;
       
     }
 
@@ -163,11 +174,15 @@ class Sweeper
         servo.attach(pin); 
       }
 
+      // cache the pin ID in constructure to use later for 
+      // attaching and detaching
       if(!pin_cache){
         PinCache(pin);
       }
 
-
+//      Serial.println("CONSTRUCTOR");
+//      Serial.println(mode);
+      
     }
 
     void PinCache (int pin){
@@ -176,7 +191,7 @@ class Sweeper
 
     void Detach()
     {
-      Serial.print("DETATCHING ");
+//      Serial.print("DETATCHING ");
       servo.detach();
     }
 
@@ -241,39 +256,6 @@ class Sweeper
       }
     }
 
-    boolean GetPublishDataStatus()
-    {
-      return publish_data;
-    }
-  
-    String GetPublishData()
-    {
-      return sweepString;
-    }
-  
-    void ResetPublishDataStatus()
-    {
-      publish_data = false;
-      sweepString = "";
-    }
-
-    void SendBatchData() {
-      // helping debug the serial buffer issue
-      if(sendJSON == true){
-          if(sweepString.endsWith("/")){
-            int char_index = sweepString.lastIndexOf("/");
-            sweepString.remove(char_index);
-          }
-    
-          if(printStringTitle == true){
-            Serial.println("");
-            Serial.print("sweepString: ");
-          }
-          Serial.println(sweepString);
-          publish_data = true;
-      }
-    }
-
     void StoreData(int currentDistance)
     {
       if(printStringTitle == true){
@@ -299,6 +281,42 @@ class Sweeper
       }
     }
 
+    boolean GetPublishDataStatus()
+    {
+      return publish_data;
+    }
+  
+    String GetPublishData()
+    {
+      return sweepString;
+    }
+
+    void SendBatchData() {
+      // helping debug the serial buffer issue
+      if(sendJSON == true){
+          if(sweepString.endsWith("/")){
+            int char_index = sweepString.lastIndexOf("/");
+            sweepString.remove(char_index);
+          }
+    
+          if(printStringTitle == true){
+            Serial.println("");
+            Serial.print("sweepString: ");
+          }
+          Serial.println(sweepString);
+          publish_data = true;
+
+          // TODO THURS... MAKE SURE THIS WORKS 
+          ResetPublishDataStatus();
+      }
+    }
+
+    void ResetPublishDataStatus()
+    {
+      publish_data = false;
+      sweepString = "";
+    }
+
     void resetScanValues(){
       //jarray = jsonBuffer->createArray();
       //jarray.clear();
@@ -311,94 +329,98 @@ class Sweeper
         servo.write(pos);
       }
 
-      if ((millis() - pausedPreviousMillis) > pausedInterval) {
+      current_millis = millis();
 
+      if ((current_millis - pausedPreviousMillis) > pausedInterval) {
         // reattach servo
         paused = false;
       }
-
-      if (mode == "basic") {
+      
+      if (mode == "sweep") {
+      // if (mode == "basic") {
         // BIG NOTE
         // MORE NOTE// NEED TO PUT THIS BACK IN AT SOME POINT OR REFACTOR
         // modeBasic();
 
-        if((millis() - lastUpdate) > updateInterval)  // time to update
+//        Serial.println("in sweep");
+
+        if((current_millis - lastUpdate) > updateInterval)  // time to update
         {
           lastUpdate = millis();
     
-          if (buttonPushCounter == 1){
+          // if (buttonPushCounter == 1){
             // Sweep
             min_degree = 0;
             max_degree = 170;
             pos += increment;
-          } else  if (buttonPushCounter == 2){
-            // Noise
-            min_degree = 15;
-            max_degree = 155;
+          // } else  if (buttonPushCounter == 2){
+          //   // Noise
+          //   min_degree = 15;
+          //   max_degree = 155;
     
-            n = sn.noise(x, y);
-            x += increase;
+          //   n = sn.noise(x, y);
+          //   x += increase;
       
-            pos = (int)map(n*100, -100, 100, minAngle, maxAngle);
+          //   pos = (int)map(n*100, -100, 100, minAngle, maxAngle);
             
-          } else if (buttonPushCounter == 3){
-            // sweep interact
-            min_degree = 0;
-            max_degree = 170;
+          // } else if (buttonPushCounter == 3){
+          //   // sweep interact
+          //   min_degree = 0;
+          //   max_degree = 170;
             
-            if (pos > lowPos && pos < highPos) {
-              if (average < highDistance && average > lowDistance ) {
+          //   if (pos > lowPos && pos < highPos) {
+          //     if (average < highDistance && average > lowDistance ) {
                 
-                if (pos > 90) {
-                  pos = 160;
-                } else if (pos <= 90) {
-                  pos = 10;
-                }
+          //       if (pos > 90) {
+          //         pos = 160;
+          //       } else if (pos <= 90) {
+          //         pos = 10;
+          //       }
     
-                // potential put a pause in here..
-                // paused = true;
-              } else {
-                pos += increment;
-              }
-            } else {
-              pos += increment;
-            }
+          //       // potential put a pause in here..
+          //       // paused = true;
+          //     } else {
+          //       pos += increment;
+          //     }
+          //   } else {
+          //     pos += increment;
+          //   }
             
-          } else if (buttonPushCounter == 4) {
-            // noise interact
-            min_degree = 15;
-            max_degree = 155;
+          // } else if (buttonPushCounter == 4) {
+          //   // noise interact
+          //   min_degree = 15;
+          //   max_degree = 155;
     
-            if(paused == false){
-              n = sn.noise(x, y);
-              x += increase;
+          //   if(paused == false){
+          //     n = sn.noise(x, y);
+          //     x += increase;
               
-              pos = (int)map(n*100, -100, 100, minAngle, maxAngle);
-            }
+          //     pos = (int)map(n*100, -100, 100, minAngle, maxAngle);
+          //   }
     
-            if(paused == false){
-              if (pos > lowPos && pos < highPos) {
-                highDistance = 80;
-                if (average < highDistance && average > lowDistance ) {
+          //   if(paused == false){
+          //     if (pos > lowPos && pos < highPos) {
+          //       highDistance = 80;
+          //       if (average < highDistance && average > lowDistance ) {
     
-                  servo.write(pos+10);
-                  delay(100);
-                  servo.write(pos-10);
-                  delay(100);
-                  servo.write(pos);
-                  delay(100);
+          //         servo.write(pos+10);
+          //         delay(100);
+          //         servo.write(pos-10);
+          //         delay(100);
+          //         servo.write(pos);
+          //         delay(100);
     
-                  // potential put a pause in here..
-                  pausedPreviousMillis = millis();
-                  paused = true;
-                } else {
-                  // keep empty
-                }
-              } else {
-                // keep empty
-              }
-            }
-          }
+          //         // potential put a pause in here..
+          //         pausedPreviousMillis = millis();
+          //         paused = true;
+          //       } else {
+          //         // keep empty
+          //       }
+          //     } else {
+          //       // keep empty
+          //     }
+          //   }
+          // }
     
           // 
           // =================
@@ -413,97 +435,299 @@ class Sweeper
             servo.write(pos);
           }
     
-          if (buttonPushCounter == 1 || buttonPushCounter == 3){
+          // if (buttonPushCounter == 1 || buttonPushCounter == 3){
             // sweep
+            // == BEGINNING OF SWEEP SEND DATA
             if ((pos >= max_degree) || (pos <= min_degree)) // end of sweep
             {
-              // send data through serial here
-              SendBatchData();
-              servo.detach();
-                // TODO... Pass IN THE PIN ID SO REF HERE
+//              // send data through serial here
+//              SendBatchData();
+              // servo.detach();
+              Detach();
+              // TODO... Pass IN THE PIN ID SO REF HERE
               servo.attach(pin_cache);
               // reverse direction
               increment = -increment;
             }
-          } else if (buttonPushCounter == 2 || buttonPushCounter == 4){
-            // Noise
-            // Send the ping data readings on every nth count
+            // END OF SWEEP SEND DATA
+
+            // ====== BEGINNING OF SWEEP COUND OFFSET DATA
+            // NOTE: I think the var  is mis-names here: 
+            // ************** readIndex
             if(pingTotalCount % pingRemainderValue == 0){
               SendBatchData();
+              pingTotalCount = 1;
+              
             }
-          }
+            // ====== END OF SWEEP COUND OFFSET DATA
+            
+
+
+            
+//           } else if (buttonPushCounter == 2 || buttonPushCounter == 4){
+//             // Noise
+//             // Send the ping data readings on every nth count
+// //            if(pingTotalCount % pingRemainderValue == 0){
+// //              SendBatchData();
+// //            }
+//           }
 
         }
 
+      } else if (mode == "sweep_react"){
+
+//        Serial.println("in sweep react!");
+
+        if((current_millis - lastUpdate) > updateInterval)  // time to update
+        {
+          lastUpdate = millis();
+
+          // sweep interact
+          min_degree = 0;
+          max_degree = 170;
+          
+          if (pos > lowPos && pos < highPos) {
+            if (average < highDistance && average > lowDistance ) {
+              
+              if (pos > 90) {
+                pos = 160;
+              } else if (pos <= 90) {
+                pos = 10;
+              }
+  
+              // potential put a pause in here..
+              // paused = true;
+            } else {
+              pos += increment;
+            }
+          } else {
+            pos += increment;
+          }
+
+          if (paused == true) {
+            return;
+          } else {
+            if(servo.attached() == false){
+              // TODO... Pass IN THE PIN ID SO REF HERE
+              servo.attach(pin_cache);
+
+            }
+            servo.write(pos);
+          }
+
+          // == BEGINNING OF SWEEP SEND DATA
+          if ((pos >= max_degree) || (pos <= min_degree)) // end of sweep
+          {
+            // send data through serial here
+            // servo.detach();
+            Detach();
+            // TODO... Pass IN THE PIN ID SO REF HERE
+            servo.attach(pin_cache);
+            // reverse direction
+            increment = -increment;
+          }
+          // END OF SWEEP SEND DATA
+
+          // ====== BEGINNING OF SWEEP COUND OFFSET DATA
+          // NOTE: I think the var  is mis-names here: 
+          // ************** readIndex
+          if(pingTotalCount % pingRemainderValue == 0){
+            SendBatchData();
+            pingTotalCount = 1;
+            
+          }
+          // ====== END OF SWEEP COUND OFFSET DATA
+
+        }
+
+      } else if (mode == "sweep_react_pause"){
+
+      } else if (mode == "noise"){
+
+        if((current_millis - lastUpdate) > updateInterval)  // time to update
+        {
+          lastUpdate = millis();
+
+          // Noise
+          min_degree = 15;
+          max_degree = 155;
+
+          n = sn.noise(x, y);
+          x += increase;
+    
+          pos = (int)map(n*100, -100, 100, minAngle, maxAngle);
+
+          if (paused == true) {
+            return;
+          } else {
+            if(servo.attached() == false){
+              // TODO... Pass IN THE PIN ID SO REF HERE
+              servo.attach(pin_cache);
+
+            }
+            servo.write(pos);
+          }
+
+          // ====== BEGINNING OF SWEEP COUND OFFSET DATA
+          // NOTE: I think the var  is mis-names here: 
+          // ************** readIndex
+          if(pingTotalCount % pingRemainderValue == 0){
+            SendBatchData();
+            pingTotalCount = 1;
+            
+          }
+          // ====== END OF SWEEP COUND OFFSET DATA
+
+        }
+
+      } else if (mode == "noise_react"){
+
+        if((current_millis - lastUpdate) > updateInterval)  // time to update
+        {
+          lastUpdate = millis();
+
+          // noise interact
+          min_degree = 15;
+          max_degree = 155;
+  
+          if(paused == false){
+            n = sn.noise(x, y);
+            x += increase;
+            
+            pos = (int)map(n*100, -100, 100, minAngle, maxAngle);
+          }
+  
+          if(paused == false){
+            if (pos > lowPos && pos < highPos) {
+              highDistance = 80;
+              if (average < highDistance && average > lowDistance ) {
+  
+                servo.write(pos+10);
+                delay(100);
+                servo.write(pos-10);
+                delay(100);
+                servo.write(pos);
+                delay(100);
+  
+                // potential put a pause in here..
+                pausedPreviousMillis = millis();
+                paused = true;
+              } else {
+                // keep empty
+              }
+            } else {
+              // keep empty
+            }
+          }
+
+          if (paused == true) {
+            return;
+          } else {
+            if(servo.attached() == false){
+              // TODO... Pass IN THE PIN ID SO REF HERE
+              servo.attach(pin_cache);
+
+            }
+            servo.write(pos);
+          }
+
+          // ====== BEGINNING OF SWEEP COUND OFFSET DATA
+          // NOTE: I think the var  is mis-names here: 
+          // ************** readIndex
+          if(pingTotalCount % pingRemainderValue == 0){
+            SendBatchData();
+            pingTotalCount = 1;
+            
+          }
+          // ====== END OF SWEEP COUND OFFSET DATA
+
+
+
+        }
+
+      } else if (mode == "patern_wave_small"){
+
+        if((current_millis - lastUpdate) > updateInterval)  // time to update
+        {
+          lastUpdate = millis();
+
+
+
+        }
 
       // This is for the other patterns methods... this needs to be integrated into the above interactions
       } else if (mode == "pattern" || mode == "patternWave" || mode == "patternWaveSmall" || mode == "patternWaveSmall_v2") {
         modePattern();
       } else {
+        Serial.println("wtf???");
         // this is the react
-        if ((millis() - lastUpdate) > updateInterval) // time to update
-        {
-          lastUpdate = millis();
-
-          if (pos > lowPos && pos < highPos) {
-            // if(currentDistance < 100 && currentDistance > 5 ){
-            if (currentDistance < highDistance && currentDistance > lowDistance ) {
-              if (pos > 90) {
-                pos = 170;
-              } else if (pos <= 90) {
-                pos = 10;
-              }
-
-              pausedPreviousMillis = millis();
-              paused = true;
-              servo.write(pos);
-              // detatch servo here
-              increment = -increment;
-            } else {
-
-              // something is happing here that is a bit funny.
-              // It doesn't allow for a full reset to the top or bottom sometimes
-              if (paused == true) {
-                return;
-              }
-
-              pos += increment;
-            }
-          } else {
-
-            // something is happing here that is a bit funny.
-            // It doesn't allow for a full reset to the top or bottom sometimes
-            // Or it happens here
-            if (paused == true) {
-              // check if detatched, if not
-              // detatch servo here
-              return;
-            }
-
-            pos += increment;
-          }
-
-          // something is happing here that is a bit funny.
-          // It doesn't allow for a full reset to the top or bottom sometimes
-          // Or here!
-          if (paused == true) {
-            // check if detatched, if not
-            // detatch servo herer
-            return;
-          } else {
-            int posConstrain = constrain(pos, 10, 170);
-            servo.write(pos);
-
-            if ((pos >= 180) || (pos <= 0)) // end of sweep
-            {
-              // reverse direction
-              increment = -increment;
-              resetScanValues();
-            }
-          }
-        }
+//        if ((millis() - lastUpdate) > updateInterval) // time to update
+//        {
+//          lastUpdate = millis();
+//
+//          if (pos > lowPos && pos < highPos) {
+//            // if(currentDistance < 100 && currentDistance > 5 ){
+//            if (currentDistance < highDistance && currentDistance > lowDistance ) {
+//              if (pos > 90) {
+//                pos = 170;
+//              } else if (pos <= 90) {
+//                pos = 10;
+//              }
+//
+//              pausedPreviousMillis = millis();
+//              paused = true;
+//              servo.write(pos);
+//              // detatch servo here
+//              increment = -increment;
+//            } else {
+//
+//              // something is happing here that is a bit funny.
+//              // It doesn't allow for a full reset to the top or bottom sometimes
+//              if (paused == true) {
+//                return;
+//              }
+//
+//              pos += increment;
+//            }
+//          } else {
+//
+//            // something is happing here that is a bit funny.
+//            // It doesn't allow for a full reset to the top or bottom sometimes
+//            // Or it happens here
+//            if (paused == true) {
+//              // check if detatched, if not
+//              // detatch servo here
+//              return;
+//            }
+//
+//            pos += increment;
+//          }
+//
+//          // something is happing here that is a bit funny.
+//          // It doesn't allow for a full reset to the top or bottom sometimes
+//          // Or here!
+//          if (paused == true) {
+//            // check if detatched, if not
+//            // detatch servo herer
+//            return;
+//          } else {
+//            int posConstrain = constrain(pos, 10, 170);
+//            servo.write(pos);
+//
+//            if ((pos >= 180) || (pos <= 0)) // end of sweep
+//            {
+//              // reverse direction
+//              increment = -increment;
+//              resetScanValues();
+//            }
+//          }
+//        }
 
       }// end of else
+    }
+
+    void setMode (String md){
+      mode = md;
     }
 
     void modeBasic()
@@ -547,13 +771,15 @@ class Sweeper
 }; // end of class
 
 #define SONAR_NUM     20 // Number of sensors.
+//#define SONAR_NUM     10 // Number of sensors.
 
 unsigned long pingTimer[SONAR_NUM]; // Holds the times when the next ping should happen for each sensor.
 unsigned int cm[SONAR_NUM];         // Where the ping distances are stored.
 uint8_t currentSensor = 0;          // Keeps track of which sensor is active.
 
 NewPing sonar[SONAR_NUM] = {     // Sensor object array.
-  NewPing(A11, 45, MAX_DISTANCE), // Each sensor's trigger pin, echo pin, and max distance to ping.
+  NewPing(A11, 45, MAX_DISTANCE), 
+// Each sensor's trigger pin, echo pin, and max distance to ping.
   NewPing(A12, 47, MAX_DISTANCE),
   NewPing(A13, 49, MAX_DISTANCE),
   NewPing(A14, 51, MAX_DISTANCE),
@@ -582,6 +808,7 @@ NewPing sonar[SONAR_NUM] = {     // Sensor object array.
 //#define OBJECT_NUM_TOTAL  13 // Number of sensors.
 
 #define OBJECT_NUM  20 // Number of sensors.
+//#define OBJECT_NUM  10 // Number of sensors.
 
 // Sensor object array.
 // ID, Update Interval, Sonar ID, Start Possition, mode, ping index offset
@@ -591,7 +818,6 @@ Sweeper sweep[OBJECT_NUM] = {
   Sweeper(2, 20, sonar[2], 0, mode, 4),
   Sweeper(3, 20, sonar[3], 0, mode, 6),
   Sweeper(4, 20, sonar[4], 0, mode, 8),
-  
   Sweeper(5, 20, sonar[5], 0, mode, 10),
   Sweeper(6, 20, sonar[6], 0, mode, 12),
   Sweeper(7, 20, sonar[7], 0, mode, 14),
@@ -720,7 +946,7 @@ void setup() {
 
 void establishContact() {
   while (Serial.available() <= 0) {
-    Serial.println('A');   // send a capital A
+//    Serial.println('A');   // send a capital A
     delay(300);
   }
 }
@@ -730,26 +956,50 @@ void loop() {
   // read the incoming byte:
   if (Serial.available() > 0) {
     incomingByte = Serial.read();
+    Serial.println("Character: " + incomingByte);
   }
 
-//  delay(500);
+  // Different Key Codes
+  // =================
+  
+  // Go
   // g = 103
+
+  // Stop
   // s = 115
+
+  // Next
   // n = 110
+
+  // Previous
   // p = 112
+
+  // Configure
   // c = 99
+
+  // Mode Controles + hex values
+  // 1 = Sweep / 49
+  // 2 = sweep react / 50
+  // 3 = sweep react pause / 51
+  // 4 = noise / 52
+  // 5 = noise react / 53
+  // 6 = patternWaveSmall_v2: smaller wave form / 54
+
+  // END OF CODES
+  // ==================
+
 
   // go
   if (incomingByte == 103) {
     
-    int pin = 22;
-    // Set the starting time for each sensor.
-    for (uint8_t i = 0; i < OBJECT_NUM; i++) {
-//      Serial.println(i);
-      //sweep[i].Attach(pin);
-      pin++;
-    }
-
+//     int pin = 22;
+//     // Set the starting time for each sensor.
+//     for (uint8_t i = 0; i < OBJECT_NUM; i++) {
+// //      Serial.println(i);
+//       //sweep[i].Attach(pin);
+//       pin++;
+//     }
+//    mode = "sweep";
   
     // next
   } else if (incomingByte == 110) {
@@ -796,6 +1046,22 @@ void loop() {
       sweep[i].GoTo(pos);
     }
     return;
+  } else if (incomingByte == 49) {
+    // Serial.println("Key 1 Pressed");
+    mode = "sweep";
+    for (uint8_t i = 0; i < SONAR_NUM; i++) {
+//      sweep[i].setMode(mode);
+    }
+
+  } else if (incomingByte == 50) {
+    mode = "sweep_react";
+    for (uint8_t i = 0; i < SONAR_NUM; i++) {
+//      sweep[i].setMode(mode);
+    }
+  } else if (incomingByte == 51) {
+  } else if (incomingByte == 52) {
+  } else if (incomingByte == 53) {
+  } else if (incomingByte == 54) {
   } else {
     // run through as a go!
   }
