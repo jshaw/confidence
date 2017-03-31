@@ -623,7 +623,7 @@ class Sweeper
 
         // You know, nothing is running here!
         // =================
-        Serial.println("wtf???");
+//        Serial.println("wtf???");
       }// end of else
     }
 
@@ -945,7 +945,6 @@ void loop() {
     }
     return;
   } else if (incomingByte == 49) {
-    // Serial.println("Key 1 Pressed");
     mode = "sweep";
     for (uint8_t i = 0; i < OBJECT_NUM; i++) {
      sweep[i].setMode(mode);
