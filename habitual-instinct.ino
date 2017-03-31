@@ -40,7 +40,7 @@
 int control_increment = 10;
 
 //boolean mode = true;
-// basic: just move back and forth
+// sweep: just move back and forth
 // pattern: offset basic back and forth based on ID
 // patternWave: offset basic back and forth based on position on the board
 // patternWaveSmall: offset basic back and forth based on position on the board but less difference between the starting degrees per object
@@ -346,10 +346,6 @@ class Sweeper
       }
       
       if (mode == "sweep") {
-      // if (mode == "basic") {
-        // BIG NOTE
-        // MORE NOTE// NEED TO PUT THIS BACK IN AT SOME POINT OR REFACTOR
-        // modeBasic();
 
         if((current_millis - lastUpdate) > updateInterval)  // time to update
         {
@@ -624,90 +620,15 @@ class Sweeper
       } else if (mode == "pattern" || mode == "patternWave" || mode == "patternWaveSmall" || mode == "patternWaveSmall_v2") {
         modePattern();
       } else {
-        Serial.println("wtf???");
-        // this is the react
-//        if ((millis() - lastUpdate) > updateInterval) // time to update
-//        {
-//          lastUpdate = millis();
-//
-//          if (pos > lowPos && pos < highPos) {
-//            // if(currentDistance < 100 && currentDistance > 5 ){
-//            if (currentDistance < highDistance && currentDistance > lowDistance ) {
-//              if (pos > 90) {
-//                pos = 170;
-//              } else if (pos <= 90) {
-//                pos = 10;
-//              }
-//
-//              pausedPreviousMillis = millis();
-//              paused = true;
-//              servo.write(pos);
-//              // detatch servo here
-//              increment = -increment;
-//            } else {
-//
-//              // something is happing here that is a bit funny.
-//              // It doesn't allow for a full reset to the top or bottom sometimes
-//              if (paused == true) {
-//                return;
-//              }
-//
-//              pos += increment;
-//            }
-//          } else {
-//
-//            // something is happing here that is a bit funny.
-//            // It doesn't allow for a full reset to the top or bottom sometimes
-//            // Or it happens here
-//            if (paused == true) {
-//              // check if detatched, if not
-//              // detatch servo here
-//              return;
-//            }
-//
-//            pos += increment;
-//          }
-//
-//          // something is happing here that is a bit funny.
-//          // It doesn't allow for a full reset to the top or bottom sometimes
-//          // Or here!
-//          if (paused == true) {
-//            // check if detatched, if not
-//            // detatch servo herer
-//            return;
-//          } else {
-//            int posConstrain = constrain(pos, 10, 170);
-//            servo.write(pos);
-//
-//            if ((pos >= 180) || (pos <= 0)) // end of sweep
-//            {
-//              // reverse direction
-//              increment = -increment;
-//              resetScanValues();
-//            }
-//          }
-//        }
 
+        // You know, nothing is running here!
+        // =================
+        Serial.println("wtf???");
       }// end of else
     }
 
     void setMode (String md){
       mode = md;
-    }
-
-    void modeBasic()
-    {
-      if ((millis() - lastUpdate) > updateInterval) // time to update
-      {
-        lastUpdate = millis();
-        pos += increment;
-        servo.write(pos);
-        if ((pos >= 180) || (pos <= 0)) // end of sweep
-        {
-          // reverse direction
-          increment = -increment;
-        }
-      }
     }
 
     void SetPatternPos(int p)
