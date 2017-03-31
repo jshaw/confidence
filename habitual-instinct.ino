@@ -108,7 +108,7 @@ class Sweeper
     unsigned long pingTotalCount = 0;
     // number of pings before send for simplexNoise
     // unsigned long pingRemainderValue = 50;
-    unsigned long pingRemainderValue = 25;
+    unsigned long pingRemainderValue = 10;
 
     // this section is for interaction smoothing
     //===========================
@@ -209,21 +209,29 @@ class Sweeper
     void resetDefaults(){
       increment = 2;
       lastUpdate = millis();
+      paused = false;
+      pos = 90;
+      pausedPreviousMillis = millis();
+
+      // need to reset the reading values
+      for (int thisReading = 0; thisReading < numReadings; thisReading++) {
+        readings[thisReading] = 0;
+      }
     }
 
     void PrintDistance(int d)
     {
-//      Serial.print("Print Distance: ");
-//      Serial.println(d);
-      //    Serial.println(sonar->ping_result);
-//      Serial.println("===================");
+      Serial.print("Print Distance: ");
+      Serial.println(d);
+      // Serial.println(sonar->ping_result);
+      Serial.println("===================");
 
     }
 
     void SetDistance(int d)
     {
       currentDistance = d;
-      if(d == 0){
+      if(currentDistance == 0){
         return;
       }
     
@@ -252,32 +260,39 @@ class Sweeper
     //    Serial.println("===============");
     
       if(storeDataJSON == true){
-        StoreData(currentDistance);
+//        if(isAttached() == true){
+          if(paused == false){
+            StoreData(currentDistance);
+          }
+//        }
       }
     }
 
     void StoreData(int currentDistance)
     {
+      // Just some debugging here
       if(printStringTitle == true){
         if(String(currentDistance).length() > 0){
-//          Serial.print("currentDistance: ");
-//          Serial.print((String)currentDistance);
-//          Serial.print(" ||||");
-//          Serial.println(" ");
+          Serial.print("currentDistance: ");
+          Serial.print((String)currentDistance);
+          Serial.print(" ||||");
+          Serial.println(" ");
         }
       }
   
       if(String(currentDistance).length() > 0){
-        String tmp = String(id);
-        tmp.concat(":");
-        tmp.concat(String(pos));
-        tmp.concat(":");
-        tmp.concat(String(currentDistance));
-        
-        sweepString.concat(tmp);
-        sweepString.concat("/");
-  
-        pingTotalCount++;
+        if(paused == false){
+          String tmp = String(id);
+          tmp.concat(":");
+          tmp.concat(String(pos));
+          tmp.concat(":");
+          tmp.concat(String(currentDistance));
+          
+          sweepString.concat(tmp);
+          sweepString.concat("/");
+    
+          pingTotalCount++;
+        }
       }
     }
 
@@ -300,8 +315,8 @@ class Sweeper
           }
     
           if(printStringTitle == true){
-//            Serial.println("");
-//            Serial.print("sweepString: ");
+            // Serial.println("");
+            // Serial.print("sweepString: ");
           }
           Serial.println(sweepString);
           publish_data = true;
@@ -349,9 +364,7 @@ class Sweeper
             return;
           } else {
             if(servo.attached() == false){
-              // TODO... Pass IN THE PIN ID SO REF HERE
               servo.attach(pin_cache);
-
             }
             servo.write(pos);
           }
@@ -368,7 +381,8 @@ class Sweeper
           // END OF SWEEP SEND DATA
 
           // ====== BEGINNING OF SWEEP COUND OFFSET DATA
-          if(pingTotalCount % pingRemainderValue == 0){
+          // if(pingTotalCount % pingRemainderValue == 0){
+          if(pingTotalCount >= pingRemainderValue){
             SendBatchData();
             pingTotalCount = 1;
             
@@ -378,8 +392,6 @@ class Sweeper
         }
 
       } else if (mode == "sweep_react"){
-
-//        Serial.println("in sweep react!");
 
         if((current_millis - lastUpdate) > updateInterval)  // time to update
         {
@@ -393,7 +405,7 @@ class Sweeper
             if (average < highDistance && average > lowDistance ) {
               
               if (pos > 90) {
-                pos = 160;
+                pos = 170;
               } else if (pos <= 90) {
                 pos = 10;
               }
@@ -434,7 +446,8 @@ class Sweeper
           // END OF SWEEP SEND DATA
 
           // ====== BEGINNING OF SWEEP COUND OFFSET DATA
-          if(pingTotalCount % pingRemainderValue == 0){
+//          if(pingTotalCount % pingRemainderValue == 0){
+          if(pingTotalCount >= pingRemainderValue){
             SendBatchData();
             pingTotalCount = 1;
             
@@ -466,6 +479,7 @@ class Sweeper
               pausedPreviousMillis = millis();
               pausedInterval = 1000;
               paused = true;
+              servo.write(pos);
             } else {
               pos += increment;
             }
@@ -476,11 +490,9 @@ class Sweeper
           if (paused == true) {
             return;
           } else {
-            
             if(servo.attached() == false){
               servo.attach(pin_cache);
             }
-
             servo.write(pos);
           }
 
@@ -497,10 +509,10 @@ class Sweeper
           // END OF SWEEP SEND DATA
 
           // ====== BEGINNING OF SWEEP COUND OFFSET DATA
-          if(pingTotalCount % pingRemainderValue == 0){
+          // if(pingTotalCount % pingRemainderValue == 0){
+          if(pingTotalCount >= pingRemainderValue){
             SendBatchData();
             pingTotalCount = 1;
-            
           }
           // ====== END OF SWEEP COUND OFFSET DATA
 
@@ -532,7 +544,8 @@ class Sweeper
           }
 
           // ====== BEGINNING OF SWEEP COUND OFFSET DATA
-          if(pingTotalCount % pingRemainderValue == 0){
+          // if(pingTotalCount % pingRemainderValue == 0){
+          if(pingTotalCount >= pingRemainderValue){
             SendBatchData();
             pingTotalCount = 1;
             
@@ -592,14 +605,12 @@ class Sweeper
           }
 
           // ====== BEGINNING OF SWEEP COUND OFFSET DATA
-          if(pingTotalCount % pingRemainderValue == 0){
+          // if(pingTotalCount % pingRemainderValue == 0){
+          if(pingTotalCount >= pingRemainderValue){
             SendBatchData();
             pingTotalCount = 1;
           }
           // ====== END OF SWEEP COUND OFFSET DATA
-
-
-
         }
 
       } else if (mode == "patern_wave_small"){
@@ -1084,7 +1095,7 @@ void loop() {
     ping_current_millis = millis();
 
     if (ping_current_millis >= pingTimer[i]) {         // Is it this sensor's time to ping?
-      //      sweep[i].PrintDistance();
+      // sweep[i].PrintDistance();
       pingTimer[i] += PING_INTERVAL * OBJECT_NUM;  // Set next time this sensor will be pinged.
       if (i == 0 && currentSensor == OBJECT_NUM - 1) oneSensorCycle(); // Sensor ping cycle complete, do something with the results.
       sonar[currentSensor].timer_stop();          // Make sure previous timer is canceled before starting a new ping (insurance).
