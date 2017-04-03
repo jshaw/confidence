@@ -160,13 +160,16 @@ class Sweeper
       pausedPreviousMillis = 0;
       pausedInterval = 2000;
       paused = false;
-
-      x = (float)id;
+      
+      x = random(0.0, 20.0);
       
     }
 
     void Attach(int pin)
     {
+
+      Serial.print("x : ");
+      Serial.println(x);
       // if it is not attached, attach
       // otherwise don't try and re-attach
       if(servo.attached() == 0){
@@ -253,11 +256,15 @@ class Sweeper
         // calculate the average:
         average = total / numReadings;
       }
-    
-    //    Serial.println("______________");
-    //    Serial.println(currentDistance);
-    //    Serial.println(average);
-    //    Serial.println("===============");
+
+      if(mode == "measure"){
+        Serial.println("______________");
+        Serial.print("pin_cache: ");
+        Serial.println(pin_cache);
+        Serial.println(currentDistance);
+        Serial.println(average);
+        Serial.println("===============");
+      }
     
       if(storeDataJSON == true){
 //        if(isAttached() == true){
@@ -318,7 +325,10 @@ class Sweeper
             // Serial.println("");
             // Serial.print("sweepString: ");
           }
-          Serial.println(sweepString);
+
+          // REMEMBER: THIS IS THE SEND BATCH SERIAL PRINT!!
+          //Serial.println(sweepString);
+          
           publish_data = true;
 
           ResetPublishDataStatus();
@@ -615,9 +625,50 @@ class Sweeper
         {
           lastUpdate = millis();
         }
+      } else if (mode == "measure"){
+        if((current_millis - lastUpdate) > updateInterval)  // time to update
+        {
+          lastUpdate = millis();
+          Serial.print(pin_cache);
+          Serial.print(" : ");
+          Serial.print("average: ");
+          Serial.println(average);
+          
+        }
 
+      } else if (mode == "measure_react"){
+        if((current_millis - lastUpdate) > updateInterval)  // time to update
+        {
+          lastUpdate = millis();
+
+          // sweep interact
+          min_degree = 0;
+          max_degree = 170;
+          
+          if (pos > lowPos && pos < highPos) {
+            if (average < highDistance && average > lowDistance ) {
+              
+              if (pos > 90) {
+                pos = 170;
+              } else if (pos <= 90) {
+                pos = 10;
+              }
+  
+              // testing here a short pause to allow the motor to get to it's destination
+              // before continuing to move
+              pausedPreviousMillis = millis();
+              pausedInterval = 50;
+              paused = true;
+            } else {
+//              pos += increment;
+            }
+          } else {
+//            pos += increment;
+          }
+          
+        }        
+      } else if (mode == "pattern" || mode == "pattern_wave_small_v2") {
       // This is for the other patterns methods... this needs to be integrated into the above interactions
-      } else if (mode == "pattern" || mode == "patternWave" || mode == "patternWaveSmall" || mode == "patternWaveSmall_v2") {
         modePattern();
       } else {
 
@@ -689,27 +740,28 @@ NewPing sonar[OBJECT_NUM] = {     // Sensor object array.
 
 // Sensor object array.
 // ID, Update Interval, Sonar ID, Start Possition, mode, ping index offset
+int update_interval = 35;
 Sweeper sweep[OBJECT_NUM] = {
-  Sweeper(0, 20, sonar[0], 0, mode, 0),
-  Sweeper(1, 20, sonar[1], 0, mode, 2),
-  Sweeper(2, 20, sonar[2], 0, mode, 4),
-  Sweeper(3, 20, sonar[3], 0, mode, 6),
-  Sweeper(4, 20, sonar[4], 0, mode, 8),
-  Sweeper(5, 20, sonar[5], 0, mode, 10),
-  Sweeper(6, 20, sonar[6], 0, mode, 12),
-  Sweeper(7, 20, sonar[7], 0, mode, 14),
-  Sweeper(8, 20, sonar[8], 0, mode, 16),
-  Sweeper(9, 20, sonar[9], 0, mode, 18),
-  Sweeper(10, 20, sonar[10], 0, mode, 20),
-  Sweeper(11, 20, sonar[11], 0, mode, 22),
-  Sweeper(12, 20, sonar[12], 0, mode, 24),
-  Sweeper(13, 20, sonar[13], 0, mode, 26),
-  Sweeper(14, 20, sonar[14], 0, mode, 28),
-  Sweeper(15, 20, sonar[15], 0, mode, 30),
-  Sweeper(16, 20, sonar[16], 0, mode, 32),
-  Sweeper(17, 20, sonar[17], 0, mode, 34),
-  Sweeper(18, 20, sonar[18], 0, mode, 36),
-  Sweeper(19, 20, sonar[19], 0, mode, 38)
+  Sweeper(0, update_interval, sonar[0], 0, mode, 0),
+  Sweeper(1, update_interval, sonar[1], 0, mode, 2),
+  Sweeper(2, update_interval, sonar[2], 0, mode, 4),
+  Sweeper(3, update_interval, sonar[3], 0, mode, 6),
+  Sweeper(4, update_interval, sonar[4], 0, mode, 8),
+  Sweeper(5, update_interval, sonar[5], 0, mode, 10),
+  Sweeper(6, update_interval, sonar[6], 0, mode, 12),
+  Sweeper(7, update_interval, sonar[7], 0, mode, 14),
+  Sweeper(8, update_interval, sonar[8], 0, mode, 16),
+  Sweeper(9, update_interval, sonar[9], 0, mode, 18),
+  Sweeper(10, update_interval, sonar[10], 0, mode, 20),
+  Sweeper(11, update_interval, sonar[11], 0, mode, 22),
+  Sweeper(12, update_interval, sonar[12], 0, mode, 24),
+  Sweeper(13, update_interval, sonar[13], 0, mode, 26),
+  Sweeper(14, update_interval, sonar[14], 0, mode, 28),
+  Sweeper(15, update_interval, sonar[15], 0, mode, 30),
+  Sweeper(16, update_interval, sonar[16], 0, mode, 32),
+  Sweeper(17, update_interval, sonar[17], 0, mode, 34),
+  Sweeper(18, update_interval, sonar[18], 0, mode, 36),
+  Sweeper(19, update_interval, sonar[19], 0, mode, 0)
 };
 
 
@@ -774,45 +826,115 @@ void setup() {
       mappedPos = constrain(mappedPos, 1, 179);
       sweep[i].SetPatternPos(mappedPos);
     }
-  } else if (mode == "patternWave") {
-    sweep[0].SetPatternPos(0);
-    sweep[1].SetPatternPos(90);
-    sweep[2].SetPatternPos(179);
-    sweep[3].SetPatternPos(45);
-    sweep[4].SetPatternPos(135);
-  } else if (mode == "patternWaveSmall") {
-
-    // 0 20 40 60 80 100 120 140...
-    sweep[0].SetPatternPos(40);
-    sweep[1].SetPatternPos(60);
-    sweep[2].SetPatternPos(80);
-    sweep[3].SetPatternPos(100);
-    sweep[4].SetPatternPos(120);
-    sweep[5].SetPatternPos(140);
-    sweep[6].SetPatternPos(160);
-    sweep[7].SetPatternPos(140);
-    sweep[8].SetPatternPos(160);
-    sweep[9].SetPatternPos(178);
-    sweep[10].SetPatternPos(0);
-    sweep[11].SetPatternPos(120);
-    sweep[12].SetPatternPos(40);
+//  } else if (mode == "patternWave") {
+//    sweep[0].SetPatternPos(0);
+//    sweep[1].SetPatternPos(90);
+//    sweep[2].SetPatternPos(179);
+//    sweep[3].SetPatternPos(45);
+//    sweep[4].SetPatternPos(135);
+//  } else if (mode == "patternWaveSmall") {
+//
+//    // 0 20 40 60 80 100 120 140...
+//    sweep[0].SetPatternPos(40);
+//    sweep[1].SetPatternPos(60);
+//    sweep[2].SetPatternPos(80);
+//    sweep[3].SetPatternPos(100);
+//    sweep[4].SetPatternPos(120);
+//    sweep[5].SetPatternPos(140);
+//    sweep[6].SetPatternPos(160);
+//    sweep[7].SetPatternPos(140);
+//    sweep[8].SetPatternPos(160);
+//    sweep[9].SetPatternPos(178);
+//    sweep[10].SetPatternPos(0);
+//    sweep[11].SetPatternPos(120);
+//    sweep[12].SetPatternPos(40);
     
-  } else if (mode == "patternWaveSmall_v2") {
+  } else if (mode == "pattern_wave_small_v2") {
 
-    // 0 20 40 60 80 100 120 140...
-    sweep[0].SetPatternPos(50);
-    sweep[1].SetPatternPos(60);
-    sweep[2].SetPatternPos(70);
-    sweep[3].SetPatternPos(80);
-    sweep[4].SetPatternPos(90);
-    sweep[5].SetPatternPos(100);
-    sweep[6].SetPatternPos(110);
-    sweep[7].SetPatternPos(120);
-    sweep[8].SetPatternPos(130);
-    sweep[9].SetPatternPos(40);
-    sweep[10].SetPatternPos(30);
-    sweep[11].SetPatternPos(20);
-    sweep[12].SetPatternPos(10);
+    int panel = 0;
+    if(panel == 0){
+      // 0 20 40 60 80 100 120 140...
+      sweep[0].SetPatternPos(10);
+      sweep[1].SetPatternPos(30);
+      sweep[2].SetPatternPos(50);
+      sweep[3].SetPatternPos(70);
+      
+      sweep[4].SetPatternPos(20);
+      sweep[5].SetPatternPos(40);
+      sweep[6].SetPatternPos(60);
+      
+      sweep[7].SetPatternPos(10);
+      sweep[8].SetPatternPos(30);
+      sweep[9].SetPatternPos(50);
+      
+      sweep[10].SetPatternPos(90);
+      sweep[11].SetPatternPos(110);
+      sweep[12].SetPatternPos(130);
+      
+      sweep[13].SetPatternPos(80);
+      sweep[14].SetPatternPos(100);
+      sweep[15].SetPatternPos(120);
+      
+      sweep[16].SetPatternPos(70);
+      sweep[17].SetPatternPos(90);
+      sweep[18].SetPatternPos(110);
+      sweep[19].SetPatternPos(130);
+    } else if(panel == 1){
+      sweep[0].SetPatternPos(150);
+      sweep[1].SetPatternPos(170);
+      // change direction here
+      sweep[2].SetPatternPos(170);
+      sweep[3].SetPatternPos(150);
+      
+      sweep[4].SetPatternPos(160);
+      sweep[5].SetPatternPos(179);
+      // change direction here
+      sweep[6].SetPatternPos(160);
+      
+      sweep[7].SetPatternPos(150);
+      sweep[8].SetPatternPos(170);
+      sweep[9].SetPatternPos(170);
+      
+      sweep[10].SetPatternPos(130);
+      sweep[11].SetPatternPos(110);
+      sweep[12].SetPatternPos(90);
+      
+      sweep[13].SetPatternPos(140);
+      sweep[14].SetPatternPos(120);
+      sweep[15].SetPatternPos(100);
+      
+      sweep[16].SetPatternPos(150);
+      sweep[17].SetPatternPos(130);
+      sweep[18].SetPatternPos(110);
+      sweep[19].SetPatternPos(90);
+    } else if(panel == 2){
+      sweep[0].SetPatternPos(70);
+      sweep[1].SetPatternPos(50);
+      sweep[2].SetPatternPos(30);
+      sweep[3].SetPatternPos(10);
+      
+      sweep[4].SetPatternPos(60);
+      sweep[5].SetPatternPos(40);
+      sweep[6].SetPatternPos(20);
+      
+      sweep[7].SetPatternPos(70);
+      sweep[8].SetPatternPos(50);
+      sweep[9].SetPatternPos(30);
+      
+      sweep[10].SetPatternPos(20);
+      sweep[11].SetPatternPos(40);
+      sweep[12].SetPatternPos(60);
+      
+      sweep[13].SetPatternPos(10);
+      sweep[14].SetPatternPos(20);
+      sweep[15].SetPatternPos(40);
+      
+      sweep[16].SetPatternPos(1);
+      sweep[17].SetPatternPos(20);
+      sweep[18].SetPatternPos(40);
+      sweep[19].SetPatternPos(60);
+    } else if(panel == 3){
+    }
   }
 
   establishContact();
@@ -832,7 +954,7 @@ void loop() {
   // read the incoming byte:
   if (Serial.available() > 0) {
     incomingByte = Serial.read();
-    // Serial.println("Character: " + incomingByte);
+     Serial.println("Character: " + incomingByte);
   }
 
   // Different Key Codes
@@ -859,7 +981,9 @@ void loop() {
   // 3 = sweep react pause / 51
   // 4 = noise / 52
   // 5 = noise react / 53
-  // 6 = patternWaveSmall_v2: smaller wave form / 54
+  // 6 = pattern_wave_small_v2: smaller wave form / 54
+  // 7 = measure / 55
+  // 8 = measure + react only / 56
 
   // END OF CODES
   // ==================
@@ -953,6 +1077,8 @@ void loop() {
 
   } else if (incomingByte == 50) {
     mode = "sweep_react";
+    Serial.println("mode: ????????????");
+    Serial.println(mode);
     for (uint8_t i = 0; i < OBJECT_NUM; i++) {
      sweep[i].setMode(mode);
     }
@@ -977,6 +1103,21 @@ void loop() {
     }
   } else if (incomingByte == 54) {
     mode = "pattern_wave_small_v2";
+    for (uint8_t i = 0; i < OBJECT_NUM; i++) {
+     sweep[i].setMode(mode);
+     sweep[i].resetDefaults();
+    }
+
+    setPatternWavePosition();
+  } else if (incomingByte == 55) {
+    mode = "measure";
+    massDetatch();
+    for (uint8_t i = 0; i < OBJECT_NUM; i++) {
+     sweep[i].setMode(mode);
+     sweep[i].resetDefaults();
+    }
+  } else if (incomingByte == 56) {
+    mode = "measure_react";
     for (uint8_t i = 0; i < OBJECT_NUM; i++) {
      sweep[i].setMode(mode);
      sweep[i].resetDefaults();
@@ -1050,35 +1191,120 @@ void oneSensorCycle() { // Sensor ping cycle complete, do something with the res
   }
 }
 
-// Timer2 interrupt calls this function every 24uS where you can check the ping status.
+// detatch all servos
 void massDetatch() {
   // detatch all motors to save energy / motor life span
-  sweep[0].Detach();
-  sweep[1].Detach();
-  sweep[2].Detach();
-  sweep[3].Detach();
-  sweep[4].Detach();
-  sweep[5].Detach();
-  sweep[6].Detach();
-  sweep[7].Detach();
-  sweep[8].Detach();
-  sweep[9].Detach();
-  sweep[10].Detach();
-  sweep[11].Detach();
-  sweep[12].Detach();
-  sweep[13].Detach();
-  sweep[14].Detach();
-  sweep[15].Detach();
-  sweep[16].Detach();
-  sweep[17].Detach();
-  sweep[18].Detach();
-  sweep[19].Detach();
+//  sweep[0].Detach();
+//  sweep[1].Detach();
+//  sweep[2].Detach();
+//  sweep[3].Detach();
+//  sweep[4].Detach();
+//  sweep[5].Detach();
+//  sweep[6].Detach();
+//  sweep[7].Detach();
+//  sweep[8].Detach();
+//  sweep[9].Detach();
+//  sweep[10].Detach();
+//  sweep[11].Detach();
+//  sweep[12].Detach();
+//  sweep[13].Detach();
+//  sweep[14].Detach();
+//  sweep[15].Detach();
+//  sweep[16].Detach();
+//  sweep[17].Detach();
+//  sweep[18].Detach();
+//  sweep[19].Detach();
 
-  // int pin = 22;
-  // // Set the starting time for each sensor.
-  // for (uint8_t i = 0; i < OBJECT_NUM; i++) {
-  //   //sweep[i].Detach();
-  //   pin++;
-  // }
+  // Set the starting time for each sensor.
+  for (uint8_t i = 0; i < OBJECT_NUM; i++) {
+    sweep[i].Detach();
+  }
+}
+
+void setPatternWavePosition(){
+  int panel = 0;
+  if(panel == 0){
+    // 0 20 40 60 80 100 120 140...
+    sweep[0].SetPatternPos(10);
+    sweep[1].SetPatternPos(30);
+    sweep[2].SetPatternPos(50);
+    sweep[3].SetPatternPos(70);
+    
+    sweep[4].SetPatternPos(20);
+    sweep[5].SetPatternPos(40);
+    sweep[6].SetPatternPos(60);
+    
+    sweep[7].SetPatternPos(10);
+    sweep[8].SetPatternPos(30);
+    sweep[9].SetPatternPos(50);
+    
+    sweep[10].SetPatternPos(90);
+    sweep[11].SetPatternPos(110);
+    sweep[12].SetPatternPos(130);
+    
+    sweep[13].SetPatternPos(80);
+    sweep[14].SetPatternPos(100);
+    sweep[15].SetPatternPos(120);
+    
+    sweep[16].SetPatternPos(70);
+    sweep[17].SetPatternPos(90);
+    sweep[18].SetPatternPos(110);
+    sweep[19].SetPatternPos(130);
+  } else if(panel == 1){
+    sweep[0].SetPatternPos(150);
+    sweep[1].SetPatternPos(170);
+    // change direction here
+    sweep[2].SetPatternPos(170);
+    sweep[3].SetPatternPos(150);
+    
+    sweep[4].SetPatternPos(160);
+    sweep[5].SetPatternPos(179);
+    // change direction here
+    sweep[6].SetPatternPos(160);
+    
+    sweep[7].SetPatternPos(150);
+    sweep[8].SetPatternPos(170);
+    sweep[9].SetPatternPos(170);
+    
+    sweep[10].SetPatternPos(130);
+    sweep[11].SetPatternPos(110);
+    sweep[12].SetPatternPos(90);
+    
+    sweep[13].SetPatternPos(140);
+    sweep[14].SetPatternPos(120);
+    sweep[15].SetPatternPos(100);
+    
+    sweep[16].SetPatternPos(150);
+    sweep[17].SetPatternPos(130);
+    sweep[18].SetPatternPos(110);
+    sweep[19].SetPatternPos(90);
+  } else if(panel == 2){
+    sweep[0].SetPatternPos(70);
+    sweep[1].SetPatternPos(50);
+    sweep[2].SetPatternPos(30);
+    sweep[3].SetPatternPos(10);
+    
+    sweep[4].SetPatternPos(60);
+    sweep[5].SetPatternPos(40);
+    sweep[6].SetPatternPos(20);
+    
+    sweep[7].SetPatternPos(70);
+    sweep[8].SetPatternPos(50);
+    sweep[9].SetPatternPos(30);
+    
+    sweep[10].SetPatternPos(20);
+    sweep[11].SetPatternPos(40);
+    sweep[12].SetPatternPos(60);
+    
+    sweep[13].SetPatternPos(10);
+    sweep[14].SetPatternPos(20);
+    sweep[15].SetPatternPos(40);
+    
+    sweep[16].SetPatternPos(1);
+    sweep[17].SetPatternPos(20);
+    sweep[18].SetPatternPos(40);
+    sweep[19].SetPatternPos(60);
+  } else if(panel == 3){
+  }
 }
 
