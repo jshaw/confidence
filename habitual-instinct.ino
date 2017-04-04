@@ -72,6 +72,8 @@ int incomingByte = 115;
 class Sweeper
 {
     SimplexNoise sn;
+    boolean noise_interact_triggered = false;
+    int noise_trigger_pos = 0;
 
     unsigned long current_millis;
 
@@ -551,10 +553,6 @@ class Sweeper
         {
           lastUpdate = millis();
 
-          // Noise
-          min_degree = 15;
-          max_degree = 155;
-
           n = sn.noise(x, y);
           x += increase;
     
@@ -586,58 +584,99 @@ class Sweeper
         if((current_millis - lastUpdate) > updateInterval)  // time to update
         {
           lastUpdate = millis();
-
-          // noise interact
-          min_degree = 15;
-          max_degree = 155;
+          
+          // if noise react is triggered
+          if (noise_interact_triggered == true){
+            if(paused == false){
+//              Serial.println("NOISE TRIGGER");
+//              Serial.print("average: ");
+//              Serial.print(average);
+//              Serial.print(" : pos: ");
+//              Serial.print(pos);
+//              Serial.print(" : noise_trigger_pos: ");
+//              Serial.println(noise_trigger_pos);
+              
+              int pos_tmp = pos;
+              if(noise_trigger_pos == 0){
+                servo.write(pos_tmp + 20);
+                noise_trigger_pos = 1;
+                pausedInterval = 100;
+              } else if (noise_trigger_pos == 1){
+                servo.write(pos_tmp - 20);
+                noise_trigger_pos = 2;
+                pausedInterval = 100;
+              } else if (noise_trigger_pos == 2){
+                servo.write(pos_tmp);
+                noise_trigger_pos = 3;
+                pausedInterval = 2000;
+              } else if (noise_trigger_pos == 3){
+                noise_trigger_pos = 0;
+                noise_interact_triggered = false;
+                pausedInterval = 50;
+              }
   
-          if(paused == false){
-            n = sn.noise(x, y);
-            x += increase;
+              // Every time it runs in here, it should go through a pause sequence
+              // to give time to move the motor
+              pausedPreviousMillis = millis();
+              paused = true;
+            }
             
-            pos = (int)map(n*100, -100, 100, minAngle, maxAngle);
-          }
+          } else {
+            // if the noise itneract has passed through it's tigger
+
+            // TODO: need to reset the pause interval to something that is recignized globally
+            // pausedInterval = 50;
+    
+            if(paused == false){
+              n = sn.noise(x, y);
+              x += increase;
+              
+              pos = (int)map(n*100, -100, 100, minAngle, maxAngle);
+            }
+    
+            if(paused == false){
+              if (pos > lowPos && pos < highPos) {
+//                highDistance = 80;
+                Serial.print("noise average: ");
+                Serial.println(average);
+                if (average < highDistance && average > lowDistance ) {
   
-          if(paused == false){
-            if (pos > lowPos && pos < highPos) {
-              highDistance = 80;
-              if (average < highDistance && average > lowDistance ) {
-  
-                servo.write(pos+10);
-                delay(100);
-                servo.write(pos-10);
-                delay(100);
-                servo.write(pos);
-                delay(100);
-  
-                // potential put a pause in here..
-                pausedPreviousMillis = millis();
-                paused = true;
+                  noise_interact_triggered = true;
+//                  servo.write(pos+10);
+//                  delay(100);
+//                  servo.write(pos-10);
+//                  delay(100);
+//                  servo.write(pos);
+//                  delay(100);
+    
+                  // potential put a pause in here..
+                  pausedPreviousMillis = millis();
+                  paused = true;
+                } else {
+                  // keep empty
+                }
               } else {
                 // keep empty
               }
+            }
+  
+            if (paused == true) {
+              return;
             } else {
-              // keep empty
+              if(servo.attached() == false){
+                servo.attach(pin_cache);
+  
+              }
+              servo.write(pos);
+            }
+  
+            // ====== BEGINNING OF SWEEP COUND OFFSET DATA
+            // if(pingTotalCount % pingRemainderValue == 0){
+            if(pingTotalCount >= pingRemainderValue){
+              SendBatchData();
+              pingTotalCount = 1;
             }
           }
-
-          if (paused == true) {
-            return;
-          } else {
-            if(servo.attached() == false){
-              servo.attach(pin_cache);
-
-            }
-            servo.write(pos);
-          }
-
-          // ====== BEGINNING OF SWEEP COUND OFFSET DATA
-          // if(pingTotalCount % pingRemainderValue == 0){
-          if(pingTotalCount >= pingRemainderValue){
-            SendBatchData();
-            pingTotalCount = 1;
-          }
-          // ====== END OF SWEEP COUND OFFSET DATA
         }
 
       } else if (mode == "patern_wave_small"){
@@ -656,13 +695,13 @@ class Sweeper
           servo.write(pos);
 
           if (average < highDistance) {
-          //            Serial.println("----------------------------------");  
+            //Serial.println("----------------------------------");  
             if (average > lowDistance){
-            //              Serial.print("Pin : ");
-            //              Serial.print(pin_cache);
-            //              Serial.print(" /// ");
-            //              Serial.println(average);
-            //              Serial.println("=================================="); 
+            // Serial.print("Pin : ");
+            // Serial.print(pin_cache);
+            // Serial.print(" /// ");
+            // Serial.println(average);
+            // Serial.println("=================================="); 
             }
           }
         }
