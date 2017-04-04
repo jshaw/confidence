@@ -241,11 +241,6 @@ class Sweeper
       paused = false;
       pos = 90;
       pausedPreviousMillis = millis();
-
-      // need to reset the reading values
-//      for (int thisReading = 0; thisReading < numReadings; thisReading++) {
-//        readings[thisReading] = 0;
-//      }
     }
 
     void PrintDistance(int d)
@@ -650,9 +645,6 @@ class Sweeper
           } else {
             // if the noise itneract has passed through it's tigger
 
-            // TODO: need to reset the pause interval to something that is recignized globally
-            // pausedInterval = 50;
-    
             if(paused == false){
               Attach(pin_cache);
               n = sn.noise(x, y);
@@ -663,8 +655,6 @@ class Sweeper
     
             if(paused == false){
               if (pos > lowPos && pos < highPos) {
-                Serial.print("noise average: ");
-                Serial.println(average);
                 if (average < highDistance && average > lowDistance ) {
   
                   noise_interact_triggered = true;
@@ -1193,7 +1183,6 @@ void massDetatch() {
 }
 
 void setPatternWavePosition(){
-//  int panel = 0;
   if(panel == 0){
     // 0 10 20 30 40 50 60 70... per column
     sweep[0].SetPatternPos(10);
