@@ -39,11 +39,16 @@
 
 int control_increment = 10;
 
-//boolean mode = true;
+// NEED TO DECLARE PANEL HERE!!
+int panel = 0;
+
+// Ping interval in ms
+//int update_interval = 35;
+int update_interval = 40;
+
+// #TODO: Update these values / names here
 // sweep: just move back and forth
 // pattern: offset basic back and forth based on ID
-// patternWave: offset basic back and forth based on position on the board
-// patternWaveSmall: offset basic back and forth based on position on the board but less difference between the starting degrees per object
 // patternWaveSmall_v2: smaller wave form
 // react: react
 // reactAndPause: react and pause
@@ -57,7 +62,7 @@ int control_increment = 10;
 // noise react
 // patternWaveSmall_v2: smaller wave form
 
-String mode = "noise";
+String mode = "stop";
 int pos = 0;    // variable to store the servo position
 unsigned long ping_current_millis;
 
@@ -101,6 +106,11 @@ class Sweeper
     unsigned long pausedInterval;
     bool paused;
 
+    unsigned long pauseRepopulateDistanceMeasurementMillis;
+    unsigned long pauseRepopulateInterval;
+    bool pausedRepopulate;
+    
+
     boolean printJSON = true;
     boolean publish_data = false;
 
@@ -112,7 +122,7 @@ class Sweeper
 
     // this section is for interaction smoothing
     //===========================
-    static const int numReadings = 3;
+    static const int numReadings = 5;
     // the readings from the analog input
     int readings[numReadings];
     // the index of the current reading
@@ -138,8 +148,6 @@ class Sweeper
       updateInterval = interval;
       // makes sure the ID never gets out of the number of objects
       id = constrain(ide, 0, 19);
-      // id = ide;
-      // id = constrain(ide, 0, 13);
       pos = position;
       increment = 2;
       paused = false;
@@ -155,12 +163,18 @@ class Sweeper
       lowPos = 70;
       highPos = 110;
       lowDistance = 30;
-      highDistance = 100;
+      highDistance = 120;
 
       pausedPreviousMillis = 0;
       pausedInterval = 2000;
       paused = false;
-      
+
+      // this is for that pause for repopulating the data acter an avoidance
+      pauseRepopulateDistanceMeasurementMillis = 0;
+      pauseRepopulateInterval = 2000;
+      pausedRepopulate = true;
+
+      // sets the noise x pos randomly to prevent objects moving in the same pattern
       x = random(0.0, 20.0);
       
     }
@@ -168,8 +182,8 @@ class Sweeper
     void Attach(int pin)
     {
 
-      Serial.print("x : ");
-      Serial.println(x);
+//      Serial.print("x : ");
+//      Serial.println(x);
       // if it is not attached, attach
       // otherwise don't try and re-attach
       if(servo.attached() == 0){
@@ -217,9 +231,9 @@ class Sweeper
       pausedPreviousMillis = millis();
 
       // need to reset the reading values
-      for (int thisReading = 0; thisReading < numReadings; thisReading++) {
-        readings[thisReading] = 0;
-      }
+//      for (int thisReading = 0; thisReading < numReadings; thisReading++) {
+//        readings[thisReading] = 0;
+//      }
     }
 
     void PrintDistance(int d)
@@ -234,44 +248,46 @@ class Sweeper
     void SetDistance(int d)
     {
       currentDistance = d;
-      if(currentDistance == 0){
-        return;
-      }
-    
-      // this if statement is to make sure that it doesn't read wierd values while a bit slow
-      // at the top or bottom of the rotation
-      if((pos < 170 || pos > 10) || paused == false){
-        // this is apart of the smoothing algorithm
-        total = total - readings[readIndex];
-        readings[readIndex] = d;
-        total = total + readings[readIndex];
-        readIndex = readIndex + 1;
-    
-        // if we're at the end of the array...
-        if (readIndex >= numReadings) {
-          // ...wrap around to the beginning:
-          readIndex = 0;
-        }
-    
-        // calculate the average:
-        average = total / numReadings;
-      }
-
-      if(mode == "measure"){
-        Serial.println("______________");
-        Serial.print("pin_cache: ");
-        Serial.println(pin_cache);
-        Serial.println(currentDistance);
-        Serial.println(average);
-        Serial.println("===============");
-      }
-    
-      if(storeDataJSON == true){
-//        if(isAttached() == true){
-          if(paused == false){
-            StoreData(currentDistance);
+      if(currentDistance != 0){
+      
+        // this if statement is to make sure that it doesn't read wierd values while a bit slow
+        // at the top or bottom of the rotation
+//        if((pos < highPos || pos > lowPos) || paused == false){
+        if((pos < highPos || pos > lowPos)){
+          // this is apart of the smoothing algorithm
+          total = total - readings[readIndex];
+          readings[readIndex] = d;
+          total = total + readings[readIndex];
+          readIndex = readIndex + 1;
+      
+          // if we're at the end of the array...
+          if (readIndex >= numReadings) {
+            // ...wrap around to the beginning:
+            readIndex = 0;
           }
-//        }
+      
+          // calculate the average:
+          average = total / numReadings;
+        }
+  
+        if(mode == "measure" || mode == "measure_react"){
+//          Serial.println("______________");
+//          Serial.print("pin_cache: ");
+//          Serial.print(pin_cache);
+//          Serial.print(" // ");
+//          Serial.print(currentDistance);
+//          Serial.print(" // ");
+//          Serial.println(average);
+//          Serial.println("===============");
+        }
+      
+        if(storeDataJSON == true){
+  //        if(isAttached() == true){
+            if(paused == false){
+              StoreData(currentDistance);
+            }
+  //        }
+        }
       }
     }
 
@@ -353,6 +369,11 @@ class Sweeper
       if ((current_millis - pausedPreviousMillis) > pausedInterval) {
         // reattach servo
         paused = false;
+      }
+
+      // pause after reset to gather new distance measurements
+      if ((current_millis - pauseRepopulateDistanceMeasurementMillis) > pauseRepopulateInterval) {
+        pausedRepopulate = false;
       }
       
       if (mode == "sweep") {
@@ -629,11 +650,21 @@ class Sweeper
         if((current_millis - lastUpdate) > updateInterval)  // time to update
         {
           lastUpdate = millis();
-          Serial.print(pin_cache);
-          Serial.print(" : ");
-          Serial.print("average: ");
-          Serial.println(average);
           
+          pos = 90;
+          Attach(pin_cache);
+          servo.write(pos);
+
+          if (average < highDistance) {
+          //            Serial.println("----------------------------------");  
+            if (average > lowDistance){
+            //              Serial.print("Pin : ");
+            //              Serial.print(pin_cache);
+            //              Serial.print(" /// ");
+            //              Serial.println(average);
+            //              Serial.println("=================================="); 
+            }
+          }
         }
 
       } else if (mode == "measure_react"){
@@ -641,30 +672,51 @@ class Sweeper
         {
           lastUpdate = millis();
 
+          pos = servo.read();
+//          Serial.print("POS: ");
+//          Serial.println(pos);
+
           // sweep interact
-          min_degree = 0;
-          max_degree = 170;
-          
-          if (pos > lowPos && pos < highPos) {
-            if (average < highDistance && average > lowDistance ) {
-              
-              if (pos > 90) {
-                pos = 170;
-              } else if (pos <= 90) {
+          if (average < highDistance && average > lowDistance ) {
+            if(pos < highPos && pos > lowPos ){
+              if(pausedRepopulate == false){
+                // testing here a short pause to allow the motor to get to it's destination
+                // before continuing to move
+                Attach(pin_cache);
+                pausedPreviousMillis = millis();
+                pausedInterval = 500;
+                paused = true;
+                servo.write(10);
                 pos = 10;
+                pingTotalCount = 1;
+                ResetPublishDataStatus();
               }
-  
-              // testing here a short pause to allow the motor to get to it's destination
-              // before continuing to move
-              pausedPreviousMillis = millis();
-              pausedInterval = 50;
-              paused = true;
             } else {
-//              pos += increment;
+
             }
-          } else {
-//            pos += increment;
           }
+
+          if (paused == true) {
+            return;
+          } else {
+            if(pos == 10){
+              pos = 20;
+              servo.write(pos);
+              pauseRepopulateDistanceMeasurementMillis = millis();
+              pausedRepopulate = true;
+            } else if (pos < 90){
+              pos += 10;  
+              servo.write(pos);
+            } else if (pos == 90){
+              Detach();
+            }
+          } 
+
+// this might be needed... later
+//          if(pingTotalCount >= pingRemainderValue){
+//            pingTotalCount = 1;
+//            ResetPublishDataStatus();
+//          }
           
         }        
       } else if (mode == "pattern" || mode == "pattern_wave_small_v2") {
@@ -740,7 +792,6 @@ NewPing sonar[OBJECT_NUM] = {     // Sensor object array.
 
 // Sensor object array.
 // ID, Update Interval, Sonar ID, Start Possition, mode, ping index offset
-int update_interval = 35;
 Sweeper sweep[OBJECT_NUM] = {
   Sweeper(0, update_interval, sonar[0], 0, mode, 0),
   Sweeper(1, update_interval, sonar[1], 0, mode, 2),
@@ -767,6 +818,7 @@ Sweeper sweep[OBJECT_NUM] = {
 
 // ==============
 // ==============
+
 
 void setup() {
   Serial.begin(115200);
@@ -815,130 +867,19 @@ void setup() {
   sweep[18].Attach(24);
   sweep[19].Attach(22);
 
-
   if (mode == "pattern") {
     for (uint8_t i = 0; i < OBJECT_NUM; i++) {
       int mappedPos = ceil(map(i, 0, 4, 0, 180));
-
-      // Commented out oct 30 evenint
-      //Serial.println(mappedPos);
-
       mappedPos = constrain(mappedPos, 1, 179);
       sweep[i].SetPatternPos(mappedPos);
     }
-//  } else if (mode == "patternWave") {
-//    sweep[0].SetPatternPos(0);
-//    sweep[1].SetPatternPos(90);
-//    sweep[2].SetPatternPos(179);
-//    sweep[3].SetPatternPos(45);
-//    sweep[4].SetPatternPos(135);
-//  } else if (mode == "patternWaveSmall") {
-//
-//    // 0 20 40 60 80 100 120 140...
-//    sweep[0].SetPatternPos(40);
-//    sweep[1].SetPatternPos(60);
-//    sweep[2].SetPatternPos(80);
-//    sweep[3].SetPatternPos(100);
-//    sweep[4].SetPatternPos(120);
-//    sweep[5].SetPatternPos(140);
-//    sweep[6].SetPatternPos(160);
-//    sweep[7].SetPatternPos(140);
-//    sweep[8].SetPatternPos(160);
-//    sweep[9].SetPatternPos(178);
-//    sweep[10].SetPatternPos(0);
-//    sweep[11].SetPatternPos(120);
-//    sweep[12].SetPatternPos(40);
     
   } else if (mode == "pattern_wave_small_v2") {
-
-    int panel = 0;
-    if(panel == 0){
-      // 0 20 40 60 80 100 120 140...
-      sweep[0].SetPatternPos(10);
-      sweep[1].SetPatternPos(30);
-      sweep[2].SetPatternPos(50);
-      sweep[3].SetPatternPos(70);
-      
-      sweep[4].SetPatternPos(20);
-      sweep[5].SetPatternPos(40);
-      sweep[6].SetPatternPos(60);
-      
-      sweep[7].SetPatternPos(10);
-      sweep[8].SetPatternPos(30);
-      sweep[9].SetPatternPos(50);
-      
-      sweep[10].SetPatternPos(90);
-      sweep[11].SetPatternPos(110);
-      sweep[12].SetPatternPos(130);
-      
-      sweep[13].SetPatternPos(80);
-      sweep[14].SetPatternPos(100);
-      sweep[15].SetPatternPos(120);
-      
-      sweep[16].SetPatternPos(70);
-      sweep[17].SetPatternPos(90);
-      sweep[18].SetPatternPos(110);
-      sweep[19].SetPatternPos(130);
-    } else if(panel == 1){
-      sweep[0].SetPatternPos(150);
-      sweep[1].SetPatternPos(170);
-      // change direction here
-      sweep[2].SetPatternPos(170);
-      sweep[3].SetPatternPos(150);
-      
-      sweep[4].SetPatternPos(160);
-      sweep[5].SetPatternPos(179);
-      // change direction here
-      sweep[6].SetPatternPos(160);
-      
-      sweep[7].SetPatternPos(150);
-      sweep[8].SetPatternPos(170);
-      sweep[9].SetPatternPos(170);
-      
-      sweep[10].SetPatternPos(130);
-      sweep[11].SetPatternPos(110);
-      sweep[12].SetPatternPos(90);
-      
-      sweep[13].SetPatternPos(140);
-      sweep[14].SetPatternPos(120);
-      sweep[15].SetPatternPos(100);
-      
-      sweep[16].SetPatternPos(150);
-      sweep[17].SetPatternPos(130);
-      sweep[18].SetPatternPos(110);
-      sweep[19].SetPatternPos(90);
-    } else if(panel == 2){
-      sweep[0].SetPatternPos(70);
-      sweep[1].SetPatternPos(50);
-      sweep[2].SetPatternPos(30);
-      sweep[3].SetPatternPos(10);
-      
-      sweep[4].SetPatternPos(60);
-      sweep[5].SetPatternPos(40);
-      sweep[6].SetPatternPos(20);
-      
-      sweep[7].SetPatternPos(70);
-      sweep[8].SetPatternPos(50);
-      sweep[9].SetPatternPos(30);
-      
-      sweep[10].SetPatternPos(20);
-      sweep[11].SetPatternPos(40);
-      sweep[12].SetPatternPos(60);
-      
-      sweep[13].SetPatternPos(10);
-      sweep[14].SetPatternPos(20);
-      sweep[15].SetPatternPos(40);
-      
-      sweep[16].SetPatternPos(1);
-      sweep[17].SetPatternPos(20);
-      sweep[18].SetPatternPos(40);
-      sweep[19].SetPatternPos(60);
-    } else if(panel == 3){
-    }
+    setPatternWavePosition();
   }
-
+  
   establishContact();
-
+ 
 }
 
 void establishContact() {
@@ -954,7 +895,7 @@ void loop() {
   // read the incoming byte:
   if (Serial.available() > 0) {
     incomingByte = Serial.read();
-     Serial.println("Character: " + incomingByte);
+    Serial.println("Character: " + incomingByte);
   }
 
   // Different Key Codes
@@ -1077,8 +1018,6 @@ void loop() {
 
   } else if (incomingByte == 50) {
     mode = "sweep_react";
-    Serial.println("mode: ????????????");
-    Serial.println(mode);
     for (uint8_t i = 0; i < OBJECT_NUM; i++) {
      sweep[i].setMode(mode);
     }
@@ -1110,6 +1049,7 @@ void loop() {
 
     setPatternWavePosition();
   } else if (incomingByte == 55) {
+    // "7"
     mode = "measure";
     massDetatch();
     for (uint8_t i = 0; i < OBJECT_NUM; i++) {
@@ -1117,6 +1057,7 @@ void loop() {
      sweep[i].resetDefaults();
     }
   } else if (incomingByte == 56) {
+    // "8"
     mode = "measure_react";
     for (uint8_t i = 0; i < OBJECT_NUM; i++) {
      sweep[i].setMode(mode);
@@ -1158,7 +1099,10 @@ void loop() {
     if (ping_current_millis >= pingTimer[i]) {         // Is it this sensor's time to ping?
       // sweep[i].PrintDistance();
       pingTimer[i] += PING_INTERVAL * OBJECT_NUM;  // Set next time this sensor will be pinged.
-      if (i == 0 && currentSensor == OBJECT_NUM - 1) oneSensorCycle(); // Sensor ping cycle complete, do something with the results.
+
+//      don't need this
+//      if (i == 0 && currentSensor == OBJECT_NUM - 1) oneSensorCycle(); // Sensor ping cycle complete, do something with the results.
+      
       sonar[currentSensor].timer_stop();          // Make sure previous timer is canceled before starting a new ping (insurance).
       currentSensor = i;                          // Sensor being accessed.
       cm[currentSensor] = 0;                      // Make distance zero in case there's no ping echo for this sensor.
@@ -1179,42 +1123,18 @@ void echoCheck() {
 
 void oneSensorCycle() { // Sensor ping cycle complete, do something with the results.
   // The following code would be replaced with your code that does something with the ping results.
-  for (uint8_t i = 0; i < OBJECT_NUM; i++) {
-
+//  for (uint8_t i = 0; i < OBJECT_NUM; i++) {
     // commented out oct 30 eve
 //    Serial.print(i);
 //    Serial.print("=");
 //    Serial.print(cm[i]);
-//    Serial.print("cm ");
-
-    
-  }
+//    Serial.print("cm ");    
+//  }
 }
 
 // detatch all servos
 void massDetatch() {
   // detatch all motors to save energy / motor life span
-//  sweep[0].Detach();
-//  sweep[1].Detach();
-//  sweep[2].Detach();
-//  sweep[3].Detach();
-//  sweep[4].Detach();
-//  sweep[5].Detach();
-//  sweep[6].Detach();
-//  sweep[7].Detach();
-//  sweep[8].Detach();
-//  sweep[9].Detach();
-//  sweep[10].Detach();
-//  sweep[11].Detach();
-//  sweep[12].Detach();
-//  sweep[13].Detach();
-//  sweep[14].Detach();
-//  sweep[15].Detach();
-//  sweep[16].Detach();
-//  sweep[17].Detach();
-//  sweep[18].Detach();
-//  sweep[19].Detach();
-
   // Set the starting time for each sensor.
   for (uint8_t i = 0; i < OBJECT_NUM; i++) {
     sweep[i].Detach();
@@ -1224,7 +1144,7 @@ void massDetatch() {
 void setPatternWavePosition(){
   int panel = 0;
   if(panel == 0){
-    // 0 20 40 60 80 100 120 140...
+    // 0 10 20 30 40 50 60 70... per column
     sweep[0].SetPatternPos(10);
     sweep[1].SetPatternPos(30);
     sweep[2].SetPatternPos(50);
