@@ -40,7 +40,13 @@
 int control_increment = 10;
 
 // NEED TO DECLARE PANEL HERE!!
-int panel = 0;
+// IMPORTANT!!!!
+// ====================
+// ====================
+int panel = 1;
+// ====================
+// ====================
+
 
 // Ping interval in ms
 //int update_interval = 35;
@@ -217,6 +223,11 @@ class Sweeper
     int isAttached()
     {
       return servo.attached();
+    }
+
+    void switchIncrementDirection()
+    {
+      increment = -increment;
     }
 
     void GoTo(int pos)
@@ -474,7 +485,7 @@ class Sweeper
           {
             // send data through serial here
             Detach();
-            Attach(pin_cache)
+            Attach(pin_cache);
             
             // reverse direction
             increment = -increment;
@@ -1182,7 +1193,7 @@ void massDetatch() {
 }
 
 void setPatternWavePosition(){
-  int panel = 0;
+//  int panel = 0;
   if(panel == 0){
     // 0 10 20 30 40 50 60 70... per column
     sweep[0].SetPatternPos(10);
@@ -1215,52 +1226,83 @@ void setPatternWavePosition(){
     sweep[1].SetPatternPos(170);
     // change direction here
     sweep[2].SetPatternPos(170);
+    sweep[2].switchIncrementDirection();
     sweep[3].SetPatternPos(150);
+    sweep[3].switchIncrementDirection();
     
     sweep[4].SetPatternPos(160);
     sweep[5].SetPatternPos(179);
     // change direction here
     sweep[6].SetPatternPos(160);
+    sweep[6].switchIncrementDirection();
     
     sweep[7].SetPatternPos(150);
     sweep[8].SetPatternPos(170);
     sweep[9].SetPatternPos(170);
+    sweep[9].switchIncrementDirection();
     
     sweep[10].SetPatternPos(130);
+    sweep[10].switchIncrementDirection();
     sweep[11].SetPatternPos(110);
+    sweep[11].switchIncrementDirection();
     sweep[12].SetPatternPos(90);
+    sweep[12].switchIncrementDirection();
     
     sweep[13].SetPatternPos(140);
+    sweep[13].switchIncrementDirection();
     sweep[14].SetPatternPos(120);
+    sweep[14].switchIncrementDirection();
     sweep[15].SetPatternPos(100);
+    sweep[15].switchIncrementDirection();
     
     sweep[16].SetPatternPos(150);
+    sweep[16].switchIncrementDirection();
     sweep[17].SetPatternPos(130);
+    sweep[17].switchIncrementDirection();
     sweep[18].SetPatternPos(110);
+    sweep[18].switchIncrementDirection();
     sweep[19].SetPatternPos(90);
+    sweep[19].switchIncrementDirection();
   } else if(panel == 2){
     sweep[0].SetPatternPos(70);
+    sweep[0].switchIncrementDirection();
     sweep[1].SetPatternPos(50);
+    sweep[1].switchIncrementDirection();
     sweep[2].SetPatternPos(30);
+    sweep[2].switchIncrementDirection();
     sweep[3].SetPatternPos(10);
+    sweep[3].switchIncrementDirection();
     
     sweep[4].SetPatternPos(60);
+    sweep[4].switchIncrementDirection();
     sweep[5].SetPatternPos(40);
+    sweep[5].switchIncrementDirection();
     sweep[6].SetPatternPos(20);
+    sweep[6].switchIncrementDirection();
     
     sweep[7].SetPatternPos(70);
+    sweep[7].switchIncrementDirection();
     sweep[8].SetPatternPos(50);
+    sweep[8].switchIncrementDirection();
     sweep[9].SetPatternPos(30);
+    sweep[9].switchIncrementDirection();
     
     sweep[10].SetPatternPos(20);
+    sweep[10].switchIncrementDirection();
     sweep[11].SetPatternPos(40);
+    sweep[11].switchIncrementDirection();
     sweep[12].SetPatternPos(60);
+    sweep[12].switchIncrementDirection();
     
     sweep[13].SetPatternPos(10);
+    sweep[13].switchIncrementDirection();
     sweep[14].SetPatternPos(20);
+    sweep[14].switchIncrementDirection();
     sweep[15].SetPatternPos(40);
+    sweep[15].switchIncrementDirection();
     
     sweep[16].SetPatternPos(1);
+    sweep[16].switchIncrementDirection();
     sweep[17].SetPatternPos(20);
     sweep[18].SetPatternPos(40);
     sweep[19].SetPatternPos(60);
