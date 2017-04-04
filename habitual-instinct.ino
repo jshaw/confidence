@@ -111,7 +111,6 @@ class Sweeper
     unsigned long pauseRepopulateDistanceMeasurementMillis;
     unsigned long pauseRepopulateInterval;
     bool pausedRepopulate;
-    
 
     boolean printJSON = true;
     boolean publish_data = false;
@@ -164,7 +163,7 @@ class Sweeper
 
       lowPos = 70;
       highPos = 110;
-      lowDistance = 30;
+      lowDistance = 10;
       highDistance = 120;
 
       pausedPreviousMillis = 0;
@@ -345,7 +344,7 @@ class Sweeper
           }
 
           // REMEMBER: THIS IS THE SEND BATCH SERIAL PRINT!!
-          //Serial.println(sweepString);
+          Serial.println(sweepString);
           
           publish_data = true;
 
@@ -369,8 +368,21 @@ class Sweeper
       current_millis = millis();
 
       if ((current_millis - pausedPreviousMillis) > pausedInterval) {
-        // reattach servo
-        paused = false;
+        // this is for if in the noise react mode, 
+        // and there is a person still standing in front it the sensor
+        // don't try and reattach and move the sensor... the person is still,
+        // there... so stay static until they're gone
+        if(mode == "noise_react" && noise_trigger_pos == 4){
+          if (average < highDistance && average > lowDistance ) {
+            pausedPreviousMillis = millis();
+            paused = true; 
+          } else {
+            paused = false;  
+          }
+        } else {
+          paused = false;
+        }
+        
       }
 
       // pause after reset to gather new distance measurements
@@ -392,9 +404,7 @@ class Sweeper
           if (paused == true) {
             return;
           } else {
-            if(servo.attached() == false){
-              servo.attach(pin_cache);
-            }
+            Attach(pin_cache);
             servo.write(pos);
           }
 
@@ -455,10 +465,7 @@ class Sweeper
             return;
           } else {
             
-            if(servo.attached() == false){
-              servo.attach(pin_cache);
-            }
-
+            Attach(pin_cache);
             servo.write(pos);
           }
 
@@ -467,7 +474,7 @@ class Sweeper
           {
             // send data through serial here
             Detach();
-            servo.attach(pin_cache);
+            Attach(pin_cache)
             
             // reverse direction
             increment = -increment;
@@ -519,9 +526,7 @@ class Sweeper
           if (paused == true) {
             return;
           } else {
-            if(servo.attached() == false){
-              servo.attach(pin_cache);
-            }
+            Attach(pin_cache);
             servo.write(pos);
           }
 
@@ -530,7 +535,7 @@ class Sweeper
           {
             // send data through serial here
             Detach();
-            servo.attach(pin_cache);
+            Attach(pin_cache);
             
             // reverse direction
             increment = -increment;
@@ -561,10 +566,7 @@ class Sweeper
           if (paused == true) {
             return;
           } else {
-            if(servo.attached() == false){
-              servo.attach(pin_cache);
-
-            }
+            Attach(pin_cache);
             servo.write(pos);
           }
 
@@ -585,6 +587,10 @@ class Sweeper
         {
           lastUpdate = millis();
           
+          // set the low and high pos for noise
+          lowPos = 50;
+          highPos = 130;
+          
           // if noise react is triggered
           if (noise_interact_triggered == true){
             if(paused == false){
@@ -600,16 +606,25 @@ class Sweeper
               if(noise_trigger_pos == 0){
                 servo.write(pos_tmp + 20);
                 noise_trigger_pos = 1;
-                pausedInterval = 100;
+                pausedInterval = 150;
               } else if (noise_trigger_pos == 1){
                 servo.write(pos_tmp - 20);
                 noise_trigger_pos = 2;
-                pausedInterval = 100;
+                pausedInterval = 150;
               } else if (noise_trigger_pos == 2){
-                servo.write(pos_tmp);
+                servo.write(90);
+                // set the high pos to 170 to gather sensor data for the average calcualte
+                // servo.write(160);
+                // highPos = 160;
                 noise_trigger_pos = 3;
-                pausedInterval = 2000;
+                pausedInterval = 100;
               } else if (noise_trigger_pos == 3){
+                noise_trigger_pos = 4;
+                pausedInterval = 4000;
+                Detach();
+              } else if (noise_trigger_pos == 4){
+                // set the highPos pack to the 130 val for regular where does it care about area
+                highPos = 130;
                 noise_trigger_pos = 0;
                 noise_interact_triggered = false;
                 pausedInterval = 50;
@@ -628,6 +643,7 @@ class Sweeper
             // pausedInterval = 50;
     
             if(paused == false){
+              Attach(pin_cache);
               n = sn.noise(x, y);
               x += increase;
               
@@ -636,18 +652,11 @@ class Sweeper
     
             if(paused == false){
               if (pos > lowPos && pos < highPos) {
-//                highDistance = 80;
                 Serial.print("noise average: ");
                 Serial.println(average);
                 if (average < highDistance && average > lowDistance ) {
   
                   noise_interact_triggered = true;
-//                  servo.write(pos+10);
-//                  delay(100);
-//                  servo.write(pos-10);
-//                  delay(100);
-//                  servo.write(pos);
-//                  delay(100);
     
                   // potential put a pause in here..
                   pausedPreviousMillis = millis();
@@ -663,10 +672,7 @@ class Sweeper
             if (paused == true) {
               return;
             } else {
-              if(servo.attached() == false){
-                servo.attach(pin_cache);
-  
-              }
+              Attach(pin_cache);
               servo.write(pos);
             }
   
@@ -677,14 +683,12 @@ class Sweeper
               pingTotalCount = 1;
             }
           }
+        } else {
+          // reset the low and high pos to default
+          lowPos = 70;
+          highPos = 110;
         }
 
-      } else if (mode == "patern_wave_small"){
-
-        if((current_millis - lastUpdate) > updateInterval)  // time to update
-        {
-          lastUpdate = millis();
-        }
       } else if (mode == "measure"){
         if((current_millis - lastUpdate) > updateInterval)  // time to update
         {
@@ -710,10 +714,7 @@ class Sweeper
         if((current_millis - lastUpdate) > updateInterval)  // time to update
         {
           lastUpdate = millis();
-
           pos = servo.read();
-//          Serial.print("POS: ");
-//          Serial.println(pos);
 
           // sweep interact
           if (average < highDistance && average > lowDistance ) {
