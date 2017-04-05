@@ -44,7 +44,7 @@ int control_increment = 10;
 // ====================
 // ====================
 // 0, 1, 2, 3
-int panel = 1;
+int panel = 2;
 // ====================
 // ====================
 
@@ -961,27 +961,8 @@ void setup() {
   //  }
   //  sweep[0].Attach(pin);
   // =====// =====// =====// =====
-
-  sweep[0].Attach(A0);
-  sweep[1].Attach(A1);
-  sweep[2].Attach(A2);
-  sweep[3].Attach(A3);
-  sweep[4].Attach(A4);
-  sweep[5].Attach(A5);
-  sweep[6].Attach(A6);
-  sweep[7].Attach(A7);
-  sweep[8].Attach(A8);
-  sweep[9].Attach(A9);
-  sweep[10].Attach(40);
-  sweep[11].Attach(38);
-  sweep[12].Attach(36);
-  sweep[13].Attach(34);
-  sweep[14].Attach(32);
-  sweep[15].Attach(30);
-  sweep[16].Attach(28);
-  sweep[17].Attach(26);
-  sweep[18].Attach(24);
-  sweep[19].Attach(22);
+  
+  massAttatch();
 
   if (mode == "pattern") {
     for (uint8_t i = 0; i < OBJECT_NUM; i++) {
@@ -1056,26 +1037,8 @@ void loop() {
 //       //sweep[i].Attach(pin);
 //       pin++;
 //     }
-    sweep[0].Attach(A0);
-    sweep[1].Attach(A1);
-    sweep[2].Attach(A2);
-    sweep[3].Attach(A3);
-    sweep[4].Attach(A4);
-    sweep[5].Attach(A5);
-    sweep[6].Attach(A6);
-    sweep[7].Attach(A7);
-    sweep[8].Attach(A8);
-    sweep[9].Attach(A9);
-    sweep[10].Attach(40);
-    sweep[11].Attach(38);
-    sweep[12].Attach(36);
-    sweep[13].Attach(34);
-    sweep[14].Attach(32);
-    sweep[15].Attach(30);
-    sweep[16].Attach(28);
-    sweep[17].Attach(26);
-    sweep[18].Attach(24);
-    sweep[19].Attach(22);
+
+    massAttatch();
     
     mode = "sweep";
   
@@ -1257,7 +1220,32 @@ void massDetatch() {
   }
 }
 
+void massAttatch() {
+  // Attach all motors
+  sweep[0].Attach(A0);
+  sweep[1].Attach(A1);
+  sweep[2].Attach(A2);
+  sweep[3].Attach(A3);
+  sweep[4].Attach(A4);
+  sweep[5].Attach(A5);
+  sweep[6].Attach(A6);
+  sweep[7].Attach(A7);
+  sweep[8].Attach(A8);
+  sweep[9].Attach(A9);
+  sweep[10].Attach(40);
+  sweep[11].Attach(38);
+  sweep[12].Attach(36);
+  sweep[13].Attach(34);
+  sweep[14].Attach(32);
+  sweep[15].Attach(30);
+  sweep[16].Attach(28);
+  sweep[17].Attach(26);
+  sweep[18].Attach(24);
+  sweep[19].Attach(22);
+}
+
 void setPatternWavePosition(){
+  massAttatch();
   if(panel == 0){
     // 0 10 20 30 40 50 60 70... per column
     sweep[0].SetPatternPos(10);
