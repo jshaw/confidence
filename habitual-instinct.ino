@@ -43,6 +43,7 @@ int control_increment = 10;
 // IMPORTANT!!!!
 // ====================
 // ====================
+// 0, 1, 2, 3
 int panel = 1;
 // ====================
 // ====================
@@ -80,6 +81,9 @@ class Sweeper
     SimplexNoise sn;
     boolean noise_interact_triggered = false;
     int noise_trigger_pos = 0;
+
+    boolean sweep_react_pause_triggered = false;
+    int sweep_react_pause_pos = 0;
 
     unsigned long current_millis;
 
@@ -169,6 +173,8 @@ class Sweeper
 
       lowPos = 70;
       highPos = 110;
+//      lowPos = 50;
+//      highPos = 130;
       lowDistance = 10;
       highDistance = 120;
 
@@ -312,6 +318,13 @@ class Sweeper
   
       if(String(currentDistance).length() > 0){
         if(paused == false){
+          // updated April 4...
+          // added panel ID into the string. This will allow to isolate where
+          // the data is coming from.... as in what panel, which will help to plot
+          // it in the display
+//          String tmp = String(panel);
+//          tmp.concat("_");
+//          tmp.concat(String(id));
           String tmp = String(id);
           tmp.concat(":");
           tmp.concat(String(pos));
@@ -349,8 +362,13 @@ class Sweeper
             // Serial.print("sweepString: ");
           }
 
+          String addPannelToPublish = String(panel);
+          addPannelToPublish.concat("_");
+          addPannelToPublish.concat(sweepString);
+
           // REMEMBER: THIS IS THE SEND BATCH SERIAL PRINT!!
-          Serial.println(sweepString);
+//          Serial.println(sweepString);
+          Serial.println(addPannelToPublish);
           
           publish_data = true;
 
@@ -379,6 +397,17 @@ class Sweeper
         // don't try and reattach and move the sensor... the person is still,
         // there... so stay static until they're gone
         if(mode == "noise_react" && noise_trigger_pos == 4){
+          if (average < highDistance && average > lowDistance ) {
+            pausedPreviousMillis = millis();
+            paused = true; 
+          } else {
+            paused = false;  
+          }
+        } else {
+          paused = false;
+        }
+
+        if(mode == "sweep_react_pause" && noise_trigger_pos == 4){
           if (average < highDistance && average > lowDistance ) {
             pausedPreviousMillis = millis();
             paused = true; 
@@ -508,54 +537,102 @@ class Sweeper
           min_degree = 0;
           max_degree = 170;
           
-          if (pos > lowPos && pos < highPos) {
-            if (average < highDistance && average > lowDistance ) {
-              
-              if (pos > 90) {
-                pos = 170;
-              } else if (pos <= 90) {
-                pos = 10;
+          lowPos = 40;
+          highPos = 150;
+
+          if(sweep_react_pause_triggered == true){
+            if(paused == false){
+              int pos_tmp = pos;
+
+              if(sweep_react_pause_pos == 0){
+
+                if (pos_tmp > 90) {
+                  pos_tmp = 170;
+                } else if (pos <= 90) {
+                  pos_tmp = 10;
+                }
+
+                servo.write(pos_tmp);
+                sweep_react_pause_pos = 1;
+                pausedInterval = 100;
+              } else if (sweep_react_pause_pos == 1){
+                sweep_react_pause_pos = 2;
+                pausedInterval = 4000;
+                Detach();
+              } else if (sweep_react_pause_pos == 2){
+                Attach(pin_cache);
+                servo.write(90);
+                pos = 90;
+                sweep_react_pause_pos = 3;
+                pausedInterval = 100;
+              } else if (sweep_react_pause_pos == 3){
+                Detach();
+                sweep_react_pause_pos = 4;
+                pausedInterval = 100;
+
+                // because whatever it is moving, it will fast track to the extreem angle,
+                // meaning when it gets out of it, it should move in the opposite direction
+                increment = -increment;
+              } else if (sweep_react_pause_pos == 4){
+                // set the highPos pack to the 130 val for regular where does it care about area
+                sweep_react_pause_pos = 0;
+                sweep_react_pause_triggered = false;
+                pausedInterval = 50;
               }
   
-              // Pause here
+              // Every time it runs in here, it should go through a pause sequence
+              // to give time to move the motor
               pausedPreviousMillis = millis();
-              pausedInterval = 1000;
               paused = true;
-              servo.write(pos);
+            }
+
+          } else {
+            
+            if (pos > lowPos && pos < highPos) {
+              if (average < highDistance && average > lowDistance ) {
+                
+               // Pause flag set here
+               sweep_react_pause_triggered = true;
+               pausedPreviousMillis = millis();
+               paused = true;
+              } else {
+                pos += increment;
+              }
             } else {
               pos += increment;
             }
-          } else {
-            pos += increment;
-          }
 
-          if (paused == true) {
-            return;
-          } else {
-            Attach(pin_cache);
-            servo.write(pos);
-          }
+            if (paused == true) {
+              return;
+            } else {
+              Attach(pin_cache);
+              servo.write(pos);
+            }
 
-          // == BEGINNING OF SWEEP SEND DATA
-          if ((pos >= max_degree) || (pos <= min_degree)) // end of sweep
-          {
-            // send data through serial here
-            Detach();
-            Attach(pin_cache);
+            // == BEGINNING OF SWEEP SEND DATA
+            if ((pos >= max_degree) || (pos <= min_degree)) // end of sweep
+            {
+              // send data through serial here
+//              Detach();
+//              Attach(pin_cache);
+              
+              // reverse direction
+              increment = -increment;
+            }
+            // END OF SWEEP SEND DATA
+
+            // ====== BEGINNING OF SWEEP COUND OFFSET DATA
+            // if(pingTotalCount % pingRemainderValue == 0){
+            if(pingTotalCount >= pingRemainderValue){
+              SendBatchData();
+              pingTotalCount = 1;
+            }
+            // ====== END OF SWEEP COUND OFFSET DATA
             
-            // reverse direction
-            increment = -increment;
           }
-          // END OF SWEEP SEND DATA
-
-          // ====== BEGINNING OF SWEEP COUND OFFSET DATA
-          // if(pingTotalCount % pingRemainderValue == 0){
-          if(pingTotalCount >= pingRemainderValue){
-            SendBatchData();
-            pingTotalCount = 1;
-          }
-          // ====== END OF SWEEP COUND OFFSET DATA
-
+        } else {
+          lowPos = 70;
+          highPos = 110;  
         }
 
       } else if (mode == "noise"){
@@ -732,9 +809,7 @@ class Sweeper
                 pingTotalCount = 1;
                 ResetPublishDataStatus();
               }
-            } else {
-
-            }
+            } 
           }
 
           if (paused == true) {
