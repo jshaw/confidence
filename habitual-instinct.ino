@@ -44,7 +44,7 @@ int control_increment = 10;
 // ====================
 // ====================
 // 0, 1, 2, 3
-int panel = 2;
+int panel = 1;
 // ====================
 // ====================
 
@@ -775,6 +775,17 @@ class Sweeper
           pos = 90;
           Attach(pin_cache);
           servo.write(pos);
+
+          if((current_millis - lastUpdate) > updateInterval)  // time to update
+          {
+            lastUpdate = millis();
+
+            if(pingTotalCount >= pingRemainderValue){
+              SendBatchData();
+              pingTotalCount = 1;
+            }
+            
+          }
 
           if (average < highDistance) {
             //Serial.println("----------------------------------");  
