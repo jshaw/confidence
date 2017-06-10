@@ -33,6 +33,7 @@
 #include <Servo.h>
 #include <NewPing.h>
 #include <Array.h>
+#include <EEPROM.h>
 
 #define MAX_DISTANCE 400 // Maximum distance (in cm) to ping.
 #define PING_INTERVAL 33 // Milliseconds between sensor pings (29ms is about the min to avoid cross-sensor echo).
@@ -44,7 +45,17 @@ int control_increment = 10;
 // ====================
 // ====================
 // 0, 1, 2, 3
-int panel = 1;
+//int panel = 1;
+
+// EEPRAM PANEL SOLUTION
+int panel = 0;
+int panel_test = 0;
+int address = 1;
+
+// this value is representative of the panel ID
+// ie 0, 1, 2
+byte panel_byte_value = 1;
+byte p1;
 // ====================
 // ====================
 
@@ -954,6 +965,27 @@ void setup() {
     ; // wait for serial port to connect. Needed for native USB port only
   }
 
+  // EEPROM Panel ID solution.
+  // =========================
+  // Store the ID in memory so code updates don't have to be custom to each arduino
+  // this is uncommented if you are setting the EEPROM val
+//  EEPROM.write(address, panel_byte_value);
+
+  // This if for reading the EEPROM value
+  // this should be the panel ID from 0, 1, 2
+  //  panel = int(EEPROM.read(address));
+  p1 = EEPROM.read(address);
+  panel = int(p1);
+
+  // If the panel value isn't anything that is expected. Default to everything is panel id 0
+  if (panel != 0 && panel != 1 && panel != 2 && panel != 3){
+    Serial.println("Why was no panel data found?");
+    panel = 0;
+  }
+
+  // End of EEPROM stuff
+  // ==============
+
   // First ping starts at 75ms, gives time for the Arduino to chill before starting.
   pingTimer[0] = millis() + 75;
   // Set the starting time for each sensor.
@@ -1005,6 +1037,12 @@ void loop() {
     incomingByte = Serial.read();
     Serial.println("Character: " + incomingByte);
   }
+
+  // This is testing EEPROM
+//  Serial.println("panel id value 1: ");
+//  Serial.println(p1);
+//  Serial.println(panel);
+//  Serial.println("===========");
 
   // Different Key Codes
   // =================
